@@ -40,7 +40,7 @@ Step 2: Connect to the EC2 through AWS Session Manager:
 
 ```
 sudo su ec2-user
-cd /home/c2-user
+cd /home/ec2-user
 ls
 cd custom-web-experience-with-amazon-q-business/core
 ```
