@@ -1,0 +1,272 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation for the blog on GenAI with QBusiness'
+Parameters:
+  
+  LatestAmiId:
+    Description: EC2 machine image
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+  VpcId:
+    Description: ID of the existing VPC
+    Type: AWS::EC2::VPC::Id
+    ConstraintDescription: must be the ID of an existing VPC  
+  PublicSubnetIds:
+    Description: List of IDs of existing public subnets
+    Type: List<AWS::EC2::Subnet::Id>
+    ConstraintDescription: must be list of existing public subnet IDs  
+  IPRangeSSH:
+    Description: The IP address range that can be used to SSH to the EC2 instances
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: (?!0.0.0.0/0)(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
+    ConstraintDescription: must be a valid IP CIDR range of the form xxx.xxx.xxx.xxx/xx and should not be 0.0.0.0/0
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+  CertificateARN:
+    Description: Certificate that needs to be added to the Load Balancer
+    Type: String
+  AuthName:
+    Type: String
+    Description: Unique Auth Name for Cognito Resources
+    AllowedPattern: ^[a-z0-9]+$
+    ConstraintDescription: May only include lowercase, alphanumeric characters
+
+
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: "Connection Details"
+      Parameters:
+      - PortNumber
+Resources:
+  QManagedPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Sid: AllowQfunctions
+          Effect: Allow
+          Action:
+          - "qbusiness:ChatSync"
+          Resource: "*"
+        
+  QServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: QcustomwebUIRole
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ec2.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
+      - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      - !Ref QManagedPolicy
+  
+  # EC2 and ALB Security Groups
+  ELBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ELB Security Group
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 443
+        ToPort: 443
+        CidrIp: 0.0.0.0/0
+
+  ELBSecurityGroupSelfReferenceEgress:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      Description: Allow all outbound traffic
+      GroupId: !GetAtt [ELBSecurityGroup, GroupId]
+      IpProtocol: "-1"
+      CidrIp: 0.0.0.0/0
+
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: EC2 Security group
+      VpcId: !Ref VpcId  
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: !Ref 'SSHLocation'
+      - IpProtocol: tcp
+        FromPort: 8080
+        ToPort: 8080
+        SourceSecurityGroupId:
+          Fn::GetAtt:
+          - ELBSecurityGroup
+          - GroupId
+
+  SecurityGroupSelfReferenceEgress:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      Description: Allow all outbound traffic
+      GroupId: !GetAtt [SecurityGroup, GroupId]
+      IpProtocol: "-1"
+      CidrIp: 0.0.0.0/0
+
+  
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: "/"
+      Roles:
+      - !Ref QServiceRole
+
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Metadata:
+      Comment1: Configure bootstrap packages
+      'AWS::CloudFormation::Init':
+        configSets:
+          Install:
+          - Install
+        Install:
+          packages:
+            yum:
+              git: []
+              wget: []
+    Properties:
+      InstanceType: t2.micro
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      SubnetId: !Select [0, !Ref PublicSubnetIds]
+      KeyName: !Ref 'KeyName'
+      SecurityGroupIds:
+      - Ref: SecurityGroup
+      ImageId: !Ref 'LatestAmiId'
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          amazon-linux-extras install python3.8
+          rm /usr/bin/python3
+          ln -s /usr/bin/python3.8 /usr/bin/python3
+          yum install git -y
+          wget https://bootstrap.pypa.io/get-pip.py
+          python3 get-pip.py
+          python3 -m pip install streamlit==1.28.1
+          python3 -m pip install streamlit-feedback
+          python3 -m pip install boto3
+          python3 -m pip install pyjwt
+          chmod +x 
+          cd /home/ec2-user
+          
+      Tags:
+      - Key: Name
+        Value: ec2-q-client
+
+    # Target Group, Listener and Application  Load Balancer
+  EC2TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 15
+      HealthyThresholdCount: 5
+      Matcher:
+        HttpCode: '200'
+      Name: EC2TargetGroup
+      Port: 8080
+      Protocol: HTTP
+      TargetGroupAttributes:
+      - Key: deregistration_delay.timeout_seconds
+        Value: '20'
+      Targets:
+      - Id: !Ref EC2Instance
+        Port: 8080
+      UnhealthyThresholdCount: 3
+      VpcId: !Ref VpcId
+
+
+
+  UserPool:
+    Type: "AWS::Cognito::UserPool"
+    Properties:
+      UserPoolName: !Sub ${AuthName}-user-pool
+      AutoVerifiedAttributes:
+      - email
+      MfaConfiguration: "OFF"
+      Schema:
+      - Name: email
+        AttributeDataType: String
+        Mutable: false
+        Required: true
+
+  UserPoolClient:
+    Type: "AWS::Cognito::UserPoolClient"
+    DependsOn:
+      - ApplicationLoadBalancer
+    Properties:
+      ClientName: !Sub ${AuthName}-client
+      GenerateSecret: true
+      UserPoolId: !Ref UserPool
+      AllowedOAuthFlowsUserPoolClient: True
+      AllowedOAuthFlows:
+      - code
+      AllowedOAuthScopes:
+      - openid
+      SupportedIdentityProviders:
+      - COGNITO
+      CallbackURLs:
+      - !Sub "https://replace_your_LB_url_here/oauth2/idpresponse"
+
+  UserPoolDomain:
+    Type: "AWS::Cognito::UserPoolDomain"
+    Properties:
+      UserPoolId: !Ref UserPool
+      Domain: !Sub ${AuthName}-dns-testname
+
+  ALBListener2:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 443
+      Protocol: HTTPS
+      Certificates:
+      - CertificateArn: !Ref CertificateARN
+      DefaultActions:
+      - Type: 'authenticate-cognito'
+        AuthenticateCognitoConfig:
+          UserPoolArn: !GetAtt 'UserPool.Arn'
+          UserPoolClientId: !Ref UserPoolClient
+          UserPoolDomain: !Ref UserPoolDomain
+        Order: 1
+      - Type: forward
+        TargetGroupArn: !Ref EC2TargetGroup
+        Order: 2
+
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Scheme: internet-facing
+      Subnets:
+      - !Select [0, !Ref PublicSubnetIds]
+      - !Select [1, !Ref PublicSubnetIds]
+      SecurityGroups:
+      - !GetAtt ELBSecurityGroup.GroupId
+
+Outputs:
+ 
+  QServiceRoleNameArn:
+    Description: Name of Q Role with ARN FN tag
+    Value:
+      Fn::GetAtt: [QServiceRole, Arn]
+  URL:
+    Description: Use this URL to update the callback URL in Cognito User Pool client and also to access the app
+    Value:
+      Fn::GetAtt: [ApplicationLoadBalancer, DNSName]
