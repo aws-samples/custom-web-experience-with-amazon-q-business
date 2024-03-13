@@ -1,4 +1,4 @@
-# CUSTOM-WEB-EXPERIENCE-WITH-AMAZON-Q-BUSINESS
+# Custom Web Experience with Amazon Q Business
 
 Customers often want the ability to integrate custom functionalities into the Amazon Q user interface, such as handling feedback, using corporate colors and templates, custom login, and reducing context switching by integrating the user interface into a single platform. The code repo will show how to use Amazon cogntio for user authentication and use Amazon Q SDK to invoke chatbot application programmatically
 
