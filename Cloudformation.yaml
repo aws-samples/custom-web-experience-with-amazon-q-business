@@ -104,7 +104,7 @@ Resources:
       - IpProtocol: tcp
         FromPort: 22
         ToPort: 22
-        CidrIp: !Ref 'SSHLocation'
+        CidrIp: !Ref 'IPRangeSSH'
       - IpProtocol: tcp
         FromPort: 8080
         ToPort: 8080
@@ -163,9 +163,10 @@ Resources:
           python3 -m pip install streamlit-feedback
           python3 -m pip install boto3
           python3 -m pip install pyjwt
+          cd /home/ec2-user
           git clone https://github.com/aws-samples/custom-web-experience-with-amazon-q-business.git
           chmod -R 777 custom-web-experience-with-amazon-q-business
-          cd /home/ec2-user
+          
           
       Tags:
       - Key: Name

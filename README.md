@@ -42,7 +42,7 @@ Step 2: Connect to the EC2 through AWS Session Manager:
 sudo su ec2-user
 cd /home/c2-user
 ls
-cd q-business-custom-web-experience/core
+cd custom-web-experience-with-amazon-q-business/core
 ```
        
 
@@ -51,7 +51,7 @@ Step 3: Update the configuration file “data_feed_config.ini” with the Region
 
 Step 4: Run the below command to launch the web service
 
-```/usr/local/bin/streamlit run ~/q-business-custom-web-experience/core/chatbotQ_app.py --server.port=8080 &```
+```/usr/local/bin/streamlit run ~/custom-web-experience-with-amazon-q-business/core/chatbotQ_app.py --server.port=8080 &```
 
 Step 5: Create a user account to login to the app 
 -	On AWS Console navigate to Amazon Cognito page. 
