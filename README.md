@@ -18,9 +18,23 @@ Customers often want the ability to integrate custom functionalities into the Am
 Before you deploy this solution, make sure you have the following prerequisites set up:
 
 - A valid AWS account.
-- An AWS Identity and Access Management (IAM) role in the account that has sufficient permissions to create the    necessary resources. If you have administrator access to the account, no action is necessary.
-- An SSL certificate created and imported into AWS Certificate Manager (ACM). For more details, [refer to Importing a certificate](https://docs.aws.amazon.com/acm/latest/userguide/import-certificate-api-cli.html)
-- Create an Amazon Q application and leverage some data connectors to index few data . 
+- An AWS Identity and Access Management (IAM) role in the account that has sufficient permissions to create the necessary resources. If you have administrator access to the account, no action is necessary.
+- An SSL certificate created and imported into AWS Certificate Manager (ACM). For more details, [refer to Importing a certificate](https://docs.aws.amazon.com/acm/latest/userguide/import-certificate-api-cli.html). If you do not have a public SSL certificate, follow the steps in the next section to learn how to generate a private certificate.
+- An existing, working Amazon Q application 
+
+### Generate Private certificate
+
+If you already have an SSL certificate, you can skip this section. 
+However, if you don't have one and want to proceed with running this demo, you can generate a private certificate associated with a domain using the following openssl command:
+```
+openssl req \
+       -newkey rsa:2048 -nodes -keyout domain.key \
+       -out domain.csr
+```
+Answer the CSR information prompt to complete the process. 
+The only mandatory field is: “Common Name (e.g. server FQDN or YOUR name)” . Please assign a non-existing domain name in the format customdomain.com
+The above command will generate a certificate (domain.csr) and a private key (domain.key).
+Use the [Importing a certificate option](https://docs.aws.amazon.com/acm/latest/userguide/import-certificate-api-cli.html) from AWS Certificate Manager, import the content of the domain.csr file into “Certificate body” field, and the content of domain.key file into “Certificate private key” field.
 
 
 
@@ -51,7 +65,7 @@ Step 3: Update the configuration file “data_feed_config.ini” with the Region
 
 Step 4: Run the below command to launch the web service
 
-```/usr/local/bin/streamlit run ~/custom-web-experience-with-amazon-q-business/core/chatbotQ_app.py --server.port=8080 &```
+```nohup /usr/local/bin/streamlit run ~/custom-web-experience-with-amazon-q-business/core/chatbotQ_app.py --server.port=8080 > logs.txt &```
 
 Step 5: Create a user account to login to the app 
 -	On AWS Console navigate to Amazon Cognito page. 
