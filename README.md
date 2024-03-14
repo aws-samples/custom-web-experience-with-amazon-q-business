@@ -29,7 +29,7 @@ However, if you don't have one and want to proceed with running this demo, you c
 ```
 openssl req \
        -newkey rsa:2048 -nodes -keyout domain.key \
-       -out domain.csr
+       -x509 -days 365 -out domain.crt
 ```
 Answer the CSR information prompt to complete the process.   
 The only mandatory field is: “Common Name (e.g. server FQDN or YOUR name)” . Please assign a non-existing domain name in the format customdomain.com  
