@@ -34,7 +34,7 @@ openssl req \
 Answer the CSR information prompt to complete the process.   
 The only mandatory field is: “Common Name (e.g. server FQDN or YOUR name)” . Please assign a non-existing domain name in the format customdomain.com  
 The above command will generate a certificate (domain.csr) and a private key (domain.key).  
-Use the [Importing a certificate option](https://docs.aws.amazon.com/acm/latest/userguide/import-certificate-api-cli.html) from AWS Certificate Manager, import the content of the domain.csr file into “Certificate body” field, and the content of domain.key file into “Certificate private key” field.
+Use the [Importing a certificate option](https://docs.aws.amazon.com/acm/latest/userguide/import-certificate-api-cli.html) from AWS Certificate Manager, import the content of the domain.crt file into “Certificate body” field, and the content of domain.key file into “Certificate private key” field.
 
 
 
