@@ -169,6 +169,7 @@ Resources:
             }
           ini_file="custom-web-experience-with-amazon-q-business/core/data_feed_config.ini"
           write_value "$ini_file" "GLOBAL" "amazon_q_app_id" ${QApplicationId}
+          nohup /usr/local/bin/streamlit run ~/custom-web-experience-with-amazon-q-business/core/chatbotQ_app.py --server.port=8080 > logs.txt &
       Tags:
       - Key: Name
         Value: ec2-q-client
