@@ -28,14 +28,14 @@ If you already have an SSL certificate, you can skip this section.
 However, if you don't have one and want to proceed with running this demo, you can generate a private certificate associated with a domain using the following openssl command:
 ```
 openssl req \
-       -newkey rsa:2048 -nodes -keyout domain.key \
-       -x509 -days 365 -out domain.crt
-```
-Answer the CSR information prompt to complete the process.   
-The only mandatory field is: “Common Name (e.g. server FQDN or YOUR name)” . Please assign a non-existing domain name in the format customdomain.com  
-The above command will generate a certificate (domain.csr) and a private key (domain.key).  
-Use the [Importing a certificate option](https://docs.aws.amazon.com/acm/latest/userguide/import-certificate-api-cli.html) from AWS Certificate Manager, import the content of the domain.crt file into “Certificate body” field, and the content of domain.key file into “Certificate private key” field.
+  -x509 -nodes -days 365 -sha256 \
+  -subj '/C=US/ST=Oregon/L=Portland/CN=sampleexample.com' \
+  -newkey rsa:2048 -keyout key.pem -out cert.pem
 
+aws acm import-certificate --certificate fileb://cert.pem --private-key fileb://key.pem
+```
+
+Please note that, you will receive a warning from your browser when accessing the UI if you didn't provide a custom SSL certificate when launching the AWS CloudFormation Stack. Below instruction will show you how to create a self-signed certificate and used as a backup but this is certainly not recommended for production use cases. You should obtain an SSL Certificate that has been validated by a certificate authority, import it into AWS Certificate Manager and reference this when launching the AWS CloudFormation Stack. Should you wish to continue with the self-signed certificate (for development purposes), you should be able to proceed past the browser warning page. With Chrome, you will see a Your connection is not private error message (NET::ERR_CERT_AUTHORITY_INVALID), but by clicking on "Advanced" you should then see a link to proceed.
 
 
 ### Deploy this Solution: 
@@ -45,12 +45,17 @@ Step 1: Launch the AWS CloudFormation template. Launch the following AWS CloudFo
 
 - Provide a Stack Name,
 - And provide all the parameters for CloudFormation template .
+- And copy the URL from the output tab once the stack is sucessfuly completed
 
 <img src="docs/properties.png" alt="CloudFormation  parameters" width="400"/>
 
 
 
-Step 2: Connect to the EC2 through AWS Session Manager: 
+Step 2: Custom UI
+
+The CloudFormation stack deploy and start the streamlit application on an EC2 instance on port 8080.On AWS console, we can navigate to EC2 then Load Balancing and under Target Groups, it shows the health of application running behind the Application Load Balancer. For any debugging purpose you can also connect to AWS EC2 through Session Manager. 
+
+Connect to the EC2 through AWS Session Manager[Optional]: 
 
 ```
 sudo su ec2-user
@@ -60,20 +65,13 @@ cd custom-web-experience-with-amazon-q-business/core
 ```
        
 
-Step 3: Update the configuration file “data_feed_config.ini” with the Region, and Q Application Id
-
-
-Step 4: Run the below command to launch the web service
-
-```nohup /usr/local/bin/streamlit run ~/custom-web-experience-with-amazon-q-business/core/chatbotQ_app.py --server.port=8080 > logs.txt &```
-
-Step 5: Create a user account to login to the app 
+Step 3: Create a user account to login to the app 
 -	On AWS Console navigate to Amazon Cognito page. 
 -	Select the userpool that was created as part of cloudformation stack 
 -	Click Create User
 -	Enter user name, email, password and click Create User
 
-Step 6: Update the Callback URL on Cognito
+Step 4: Update the Callback URL on Cognito
 -	On AWS Console navigate to Amazon Cognito page. 
 -	Select the userpool that was created as part of cloudformation stack   
 -	Under the “App Integration” Tab > “App Client List” section > Select the client that was created 
@@ -81,7 +79,7 @@ Step 6: Update the Callback URL on Cognito
 -	Replace the text “replace_your_LB_url” with the URL that was copied from the cloudformation output tab in Step 1. Please convert the URL to Lowercase text if it’s not done already. 
 -	Click Save Changes
 
-Step 7: In a new browser window enter https://{url copied from step-1} and login using the username and password that was created in Step 5. Change the password if prompted.
+Step 5: In a new browser window enter https://{url copied from step-1} and login using the username and password that was created in Step 5. Change the password if prompted.
 
 
 
