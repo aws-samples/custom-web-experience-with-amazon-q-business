@@ -1,6 +1,6 @@
 # Custom Web Experience with Amazon Q Business
 
-Customers often want the ability to integrate custom functionalities into the Amazon Q user interface, such as handling feedback, using corporate colors and templates, custom login, and reducing context switching by integrating the user interface into a single platform. The code repo will show how to use Amazon cogntio for user authentication and use Amazon Q SDK to invoke chatbot application programmatically
+Customers often want the ability to integrate custom functionalities into the Amazon Q user interface, such as handling feedback, using corporate colors and templates, custom login, and reducing context switching by integrating the user interface into a single platform. The code repo will show how to use Amazon Cognito for user authentication and use Amazon Q SDK to invoke chatbot application programmatically
 
 <img src="docs/arch.jpg" alt="Architecture Diagram" width="400"/>
 
@@ -34,8 +34,12 @@ openssl req \
 
 aws acm import-certificate --certificate fileb://cert.pem --private-key fileb://key.pem
 ```
+Please note that, you will receive a warning from your browser when accessing the UI if you didn't provide a custom SSL certificate when launching the AWS CloudFormation Stack. Above instructions show you 
+Please note that you will receive a warning from your browser when accessing the UI if you did not provide a custom SSL certificate when launching the AWS CloudFormation Stack. The above instructions show you how to create a self-signed certificate, which can be used as a backup, but this is certainly not recommended for production use cases.  
 
-Please note that, you will receive a warning from your browser when accessing the UI if you didn't provide a custom SSL certificate when launching the AWS CloudFormation Stack. Below instruction will show you how to create a self-signed certificate and used as a backup but this is certainly not recommended for production use cases. You should obtain an SSL Certificate that has been validated by a certificate authority, import it into AWS Certificate Manager and reference this when launching the AWS CloudFormation Stack. Should you wish to continue with the self-signed certificate (for development purposes), you should be able to proceed past the browser warning page. With Chrome, you will see a Your connection is not private error message (NET::ERR_CERT_AUTHORITY_INVALID), but by clicking on "Advanced" you should then see a link to proceed.
+You should obtain an SSL Certificate that has been validated by a certificate authority, import it into AWS Certificate Manager, and reference it when launching the AWS CloudFormation Stack.  
+
+If you wish to continue with the self-signed certificate (for development purposes), you should be able to proceed past the browser warning page. With Chrome, you will see a "Your connection is not private" error message (NET::ERR_CERT_AUTHORITY_INVALID), but by clicking on "Advanced," you should then see a link to proceed.
 
 
 ### Deploy this Solution: 
