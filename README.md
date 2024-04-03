@@ -2,7 +2,7 @@
 
 Customers often want the ability to integrate custom functionalities into the Amazon Q user interface, such as handling feedback, using corporate colors and templates, custom login, and reducing context switching by integrating the user interface into a single platform. The code repo will show how to use Amazon cogntio for user authentication and use Amazon Q SDK to invoke chatbot application programmatically
 
-<img src="docs/arch.png" alt="Architecture Diagram" width="400"/>
+<img src="docs/arch.jpg" alt="Architecture Diagram" width="400"/>
 
 
 1.	First the user accesses the chatbot application, which is hosted behind the Load Balancer.
