@@ -46,6 +46,8 @@ def clear_chat_history():
     st.session_state.answers = []
     st.session_state.input = ""
     st.session_state["chat_history"] = []
+    st.session_state['conversationId'] = ''
+    st.session_state['parentMessageId'] = ''
 
 
 col1, col2 = st.columns([1,1])
@@ -68,6 +70,12 @@ if 'user_id' in st.session_state:
 else:
     user_id = str(uuid.uuid4())
     st.session_state['user_id'] = user_id
+
+if 'conversationId' not in st.session_state:
+    st.session_state['conversationId'] = ''
+
+if 'parentMessageId' not in st.session_state:    
+    st.session_state['parentMessageId'] = ''
 
 if 'chat_history' not in st.session_state:
     st.session_state['chat_history'] = []
@@ -100,12 +108,15 @@ if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
             placeholder = st.empty()
-            response = Q_backend.get_queue_chain(prompt,user_email,'')
+            response = Q_backend.get_queue_chain(prompt,user_email,st.session_state['conversationId'], st.session_state['parentMessageId'])
             if "references" in response:
                 full_response = f'''{response["answer"]}\n\n---\n{response["references"]}'''
             else:
                 full_response = f'''{response["answer"]}\n\n---\nNo sources'''
             placeholder.markdown(full_response)
+            st.session_state['conversationId'] = response["conversationId"]
+            st.session_state['parentMessageId'] = response["parentMessageId"]
+
 
     st.session_state.messages.append({"role": "assistant", "content": full_response})
     feedback = streamlit_feedback(
