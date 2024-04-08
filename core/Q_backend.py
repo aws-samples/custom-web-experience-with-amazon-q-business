@@ -22,24 +22,30 @@ def get_qclient():
     return amazon_q
 
 # This code invoke chat_sync api and format the response for UI
-def get_queue_chain(prompt_input,user_id,group):
+def get_queue_chain(prompt_input,user_id, conversationId, parentMessageId):
     amazon_q = get_qclient()
-    if group != '':
-     amazon_q_group = [group]
-     answer  =amazon_q.chat_sync(
+    if conversationId != '':
+     answer = amazon_q.chat_sync(
         applicationId=amazon_q_app_id,
-        userGroups=amazon_q_group,
         userMessage=prompt_input,
-        userId = user_id 
+        userId = user_id,
+        conversationId = conversationId,
+        parentMessageId = parentMessageId
     )
     else:
-        answer  =amazon_q.chat_sync(
+        answer = amazon_q.chat_sync(
         applicationId=amazon_q_app_id,
         userMessage=prompt_input,
         userId = user_id)
 
     system_message = answer.get('systemMessage', '')
-    result = {"answer": system_message}
+    conversationId = answer.get('conversationId', '')
+    parentMessageId = answer.get('systemMessageId', '')
+    result = {
+        "answer": system_message,
+        "conversationId": conversationId,
+        "parentMessageId": parentMessageId
+    }
 
 
 
