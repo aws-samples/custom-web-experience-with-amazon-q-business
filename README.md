@@ -80,7 +80,7 @@ Step 4: Update the Callback URL on Cognito
 -	Select the userpool that was created as part of cloudformation stack   
 -	Under the “App Integration” Tab > “App Client List” section > Select the client that was created 
 -	On the Hosted UI section Click Edit 
--	Replace the text “replace_your_LB_url” with the URL that was copied from the cloudformation output tab in Step 1. **Please convert the URL to Lowercase text if it’s not done already.** 
+-	Replace the text “replace_your_LB_url” with the URL that was copied from the cloudformation output tab in Step 1.   **Please convert the URL to Lowercase text if it’s not done already.** 
 -	Click Save Changes
 
 Step 5: In a new browser window enter https://{url copied from step-1} and login using the username and password that was created in Step 5. Change the password if prompted.
