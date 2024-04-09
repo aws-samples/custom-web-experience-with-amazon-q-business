@@ -6,9 +6,11 @@ Customers often want the ability to integrate custom functionalities into the Am
 
 
 1.	First the user accesses the chatbot application, which is hosted behind the Load Balancer.
-2.	On the first log in attempt the user is be redirected to the Amazon Cognito log in page for authentication. After successful authentication, the user is redirected back to the chatbot application.
+2.	On the first log in attempt the user is be redirected to the Amazon Cognito log in page for authentication.   
+After successful authentication, the user is redirected back to the chatbot application.
 3.	The custom UI, deployed on EC2, parses the token to obtain the user and group information, as well as the user's question. 
-4.	The UI sends the above information to Amazon Q using the chat_sync boto3 API. AmazonQ return a response containing the answer and the sources used to generate it.
+4.	The UI sends the above information to Amazon Q using the chat_sync boto3 API.   
+AmazonQ return a response containing the answer and the sources used to generate it.
 
 
 ## Deploy this solution
@@ -18,8 +20,11 @@ Customers often want the ability to integrate custom functionalities into the Am
 Before you deploy this solution, make sure you have the following prerequisites set up:
 
 - A valid AWS account.
-- An AWS Identity and Access Management (IAM) role in the account that has sufficient permissions to create the necessary resources. If you have administrator access to the account, no action is necessary.
-- An SSL certificate created and imported into AWS Certificate Manager (ACM). For more details, [refer to Importing a certificate](https://docs.aws.amazon.com/acm/latest/userguide/import-certificate-api-cli.html). If you do not have a public SSL certificate, follow the steps in the next section to learn how to generate a private certificate.
+- An AWS Identity and Access Management (IAM) role in the account that has sufficient permissions to create the necessary resources.   
+If you have administrator access to the account, no action is necessary.
+- An SSL certificate created and imported into AWS Certificate Manager (ACM).   
+For more details, [refer to Importing a certificate](https://docs.aws.amazon.com/acm/latest/userguide/import-certificate-api-cli.html).   
+If you do not have a public SSL certificate, follow the steps in the next section to learn how to generate a private certificate.
 - An existing, working Amazon Q application 
 
 ### Generate Private certificate
