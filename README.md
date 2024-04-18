@@ -4,13 +4,34 @@ Customers often want the ability to integrate custom functionalities into the Am
 
 <img src="docs/arch.jpg" alt="Architecture Diagram" width="400"/>
 
+The workflow includes the following steps:
+1.	First the user accesses the chatbot application, which is hosted behind an Application Load Balancer.
 
-1.	First the user accesses the chatbot application, which is hosted behind the Load Balancer.
-2.	On the first log in attempt the user is be redirected to the Amazon Cognito log in page for authentication.   
-After successful authentication, the user is redirected back to the chatbot application.
-3.	The custom UI, deployed on EC2, parses the token to obtain the user and group information, as well as the user's question. 
-4.	The UI sends the above information to Amazon Q using the chat_sync boto3 API.   
-AmazonQ return a response containing the answer and the sources used to generate it.
+2.	On the first log in attempt the user is redirected to the Amazon Cognito log in page for authentication. After successful authentication, the user is redirected back to the chatbot application.
+
+3.	The UI application is deployed on EC2 instance, performs below two actions:
+
+    * The custom UI, parses the token provided by Amazon Cognito and to obtain the user and group information. The Amazon Q chat responses are only generated from the documents that the user and group have access to within an Amazon Q application. The Amazon Q documentation provides more information on how to configure access control list (ACL) for each data source. 
+  
+    * The user can ask the question in the chat window. The UI sends the userMessage and the Identifier returned from the Amazon Cognito for the user to Amazon Q API.
+
+4.	Amazon Q uses the chat_sync API to carry out the conversation.
+	
+    *  The request uses the following mandatory parameters
+
+        1.	**applicationId**: The identifier of the Amazon Q application linked to the Amazon	 Q conversation.
+      
+        2.	**userId**: The identifier of the user attached to the chat input. In our case it will be email Id. Each document in any data source has access control list (ACL) information inherently attached to it as metadata. ACLs contain information about which users and groups have access to a document. When we choose to crawl ACL Amazon Q stores which user IDs have access to a document.
+      
+        3.	**userMessage**: A end user message in a conversation.
+      
+        4.	**userGroups[optional]**: The Groups that a user associated with the chat input belongs to. User group information can be fetched from the token after successful authentication and that can be passed to the API to get the relevant documents from Amazon Q.In this post we are not using group information for ACL.
+      
+    * Amazon Q returns the response as a JSON object (detailed in the <link> Amazon Q documentation </link>) and below are the few core attributes from the response payload.
+      1.	**systemMessage**: An AI-generated message in a conversation
+    
+      2.	**sourceAttributions**: The source documents used to generate the conversation response .In the RAG (Retrieval Augmentation Generation) this always refer to one or more documents from enterprise knowledge bases which are indexed in Amazon Q.
+
 
 
 ## Deploy this solution
