@@ -27,7 +27,7 @@ The workflow includes the following steps:
       
         4.	**userGroups[optional]**: The Groups that a user associated with the chat input belongs to. User group information can be fetched from the token after successful authentication and that can be passed to the API to get the relevant documents from Amazon Q.In this post we are not using group information for ACL.
       
-    * Amazon Q returns the response as a JSON object (detailed in the <link> Amazon Q documentation </link>) and below are the few core attributes from the response payload.
+    * Amazon Q returns the response as a JSON object (detailed in the  [Amazon Q documentation](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/qbusiness/client/chat_sync.html)) and below are the few core attributes from the response payload.
       1.	**systemMessage**: An AI-generated message in a conversation
     
       2.	**sourceAttributions**: The source documents used to generate the conversation response .In the RAG (Retrieval Augmentation Generation) this always refer to one or more documents from enterprise knowledge bases which are indexed in Amazon Q.
