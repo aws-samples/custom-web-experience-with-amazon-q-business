@@ -47,6 +47,7 @@ If you have administrator access to the account, no action is necessary.
 For more details, [refer to Importing a certificate](https://docs.aws.amazon.com/acm/latest/userguide/import-certificate-api-cli.html).   
 If you do not have a public SSL certificate, follow the steps in the next section to learn how to generate a private certificate.
 - An existing, working Amazon Q application 
+- 
 
 ### Generate Private certificate
 
@@ -72,18 +73,89 @@ If you wish to continue with the self-signed certificate (for development purpos
 
 Step 1: Launch the AWS CloudFormation template. Launch the following AWS CloudFormation template to deploy ELB , Cognto User pool , including the EC2 instance to host the webapp. 
 
+Provide the following parameters for stack
 
-- Provide a Stack Name,
-- And provide all the parameters for CloudFormation template .
-- And copy the URL from the output tab once the stack is sucessfuly completed
+•	**Stack name** – The name of the CloudFormation stack (for example, AmazonQ-UI-Demo)
+
+•	**AuthName** – A globally unique name to assign to the Amazon Cognito user pool
+
+•	**CertificateARN** – The CertificateARN generated from the previous step
+
+•	**IdcApplicationArn** – Identity Center customer application ARN , keep it blank on first run as we need to cognito user pool information to create the Idc Application
+
+
+•	**PublicSubnetIds** – The ID of the public subnet that can be used to deploy the EC2 instance and the Application Load Balancer
+
+•	**QApplicationId** – The existing application ID of Amazon Q
+
+•	**VPCId** – The ID of the existing VPC that can be used to deploy the demo
+
+Once the stack is complete , copy the following Key from Outputs tab .
+
+
+**Audience** : Audience to setup customer application in Identity Cente
+**RoleArn** : ARN of the IAM role required to setup token exchange in Identity Center
+**TrustedIssuerUrl** : Endpoint of the trusted issuer to setup Identity Center
+
+**QServiceRoleNameArn** : IAM role to execute Amazon Q API
+**URL** : The LB URL to access the streamlit app
 
 <img src="docs/properties.png" alt="CloudFormation  parameters" width="400"/>
 
 
 
-Step 2: Custom UI
+Step 2: Create an IAM Idenity Center Application 
 
-The CloudFormation stack deploy and start the streamlit application on an EC2 instance on port 8080.On AWS console, we can navigate to EC2 then Load Balancing and under Target Groups, it shows the health of application running behind the Application Load Balancer. For any debugging purpose you can also connect to AWS EC2 through Session Manager. 
+- Navigate to AWS IAM Identity Center, and add a new custom managed application.
+
+  **Select application type** -> then select OAuth2.0 -> Next
+
+  <img src="docs/iamidcapp_1.png" alt="IAM IDC application" width="400"/>
+
+- Provide an application name and description and select the below option as shown in the  image
+
+<img src="docs/iamdic_2.png" alt="IAM IDC application" width="400"/>
+
+
+-  Now create a trusted token issuer 
+
+<img src="docs/iamidc_3.png" alt="IAM IDC application" width="400"/>
+
+- In the Issuer URL provide the -> provide the **TrustedIssuerUrl** from Step 1,provide issuer name and keep the map attributes as Email
+
+<img src="docs/iamidc_4.png" alt="IAM IDC application" width="400"/>
+
+
+- Then in IAM IDC application authentication settings , select the trusted token issuer and in the Aud claim -> provide the **Audience** from step 1 , then click Next
+
+
+- In Specify application credentials , in Enter IAM roles -> provide **RoleArn** from Step 1
+
+ <img src="docs/iamidcapp_5.png" alt="IAM IDC application" width="400"/>
+
+ - Then Review all the steps and create the application.
+
+ - Once the application is created, go to the application and -> Assigned users and groups .
+
+ - Then set up the Trusted application for identity propagation , follow the below stpes to Amazon Q as Trusted applications for identity propagation
+
+<img src="docs/iamidcapp_6.png" alt="IAM IDC application" width="400"/>
+
+<img src="docs/iamidcapp_7.png" alt="IAM IDC application" width="400"/>
+
+<img src="docs/iamidcapp_8.png" alt="IAM IDC application" width="400"/>
+
+Step 4: Once the IAM Identity Center application is created, copy the Application ARN and navigate to cloudformation to update the stack . Enter the Application ARN in parameter and run the stack
+
+Step 5 : Once the update is complete , navigate to Cloudformation output tab copy the URL and open the URL in a browser
+
+Step 6 : Streamlit app will prompt to **Connect with Cognito** , For the first login attempt try to Sign up , use the same email id and password what you used for IAM Idc .
+
+For a better user onboarding experience we can follow the below link to create another IAM Idc SAML application and configure IAM Identity Center as a SAML IdP in your user pool
+
+[Video](https://www.youtube.com/watch?v=c-hpNhVGnj0&t=522s)
+[Instructions](https://repost.aws/knowledge-center/cognito-user-pool-iam-integration)
+
 
 Connect to the EC2 through AWS Session Manager[Optional]: 
 
@@ -93,28 +165,6 @@ cd /home/ec2-user
 ls
 cd custom-web-experience-with-amazon-q-business/core
 ```
-       
-
-Step 3: Create a user account to login to the app 
--	On AWS Console navigate to Amazon Cognito page. 
--	Select the userpool that was created as part of cloudformation stack 
--	Click Create User
--	Enter user name, email, password and click Create User
-
-Step 4: Update the Callback URL on Cognito
--	On AWS Console navigate to Amazon Cognito page. 
--	Select the userpool that was created as part of cloudformation stack   
--	Under the “App Integration” Tab > “App Client List” section > Select the client that was created 
--	On the Hosted UI section Click Edit 
--	Replace the text “replace_your_LB_url” with the URL that was copied from the cloudformation output tab in Step 1.   
-**Please convert the URL to Lowercase text if it’s not done already.** 
--	Click Save Changes
-
-Step 5: In a new browser window enter https://{url copied from step-1} and login using the username and password that was created in Step 5. Change the password if prompted.
-
-
-
-
 
 ## Security
 

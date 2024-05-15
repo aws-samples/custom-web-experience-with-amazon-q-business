@@ -237,7 +237,7 @@ Resources:
           systemctl enable aws-appconfig-agent
           systemctl restart aws-appconfig-agent
           cd /opt
-          git clone git clone https://github.com/aws-samples/custom-web-experience-with-amazon-q-business.git
+          git clone https://github.com/aws-samples/custom-web-experience-with-amazon-q-business.git
           cd custom-web-experience-with-amazon-q-business/
           pip3.11 install virtualenv
           python3.11 -m virtualenv venv
