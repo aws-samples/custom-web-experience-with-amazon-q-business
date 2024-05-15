@@ -237,9 +237,8 @@ Resources:
           systemctl enable aws-appconfig-agent
           systemctl restart aws-appconfig-agent
           cd /opt
-          git clone https://github.com/j2clerck/custom-web-experience-with-amazon-q-business.git
+          git clone git clone https://github.com/aws-samples/custom-web-experience-with-amazon-q-business.git
           cd custom-web-experience-with-amazon-q-business/
-          git checkout idc
           pip3.11 install virtualenv
           python3.11 -m virtualenv venv
           venv/bin/pip install -r requirements.txt
@@ -401,7 +400,7 @@ Outputs:
     Value:
       Fn::GetAtt: [QServiceRole, Arn]
   URL:
-    Description: Use this URL to update the callback URL in Cognito User Pool client and also to access the app
+    Description: URL to access the Streamlit APP
     Value:
       !Sub https://${ApplicationLoadBalancer.DNSName}
   TrustedIssuerUrl:
