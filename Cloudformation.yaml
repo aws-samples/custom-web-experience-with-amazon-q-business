@@ -5,7 +5,7 @@ Parameters:
   LatestAmiId:
     Description: EC2 machine image
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
-    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+    Default: '/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64'
   VpcId:
     Description: ID of the existing VPC
     Type: AWS::EC2::VPC::Id
@@ -25,15 +25,11 @@ Parameters:
   QApplicationId:
     Type: String
     Description: Q Application Id
+  IdcApplicationArn:
+    Type: String
+    Description: Identity Center customer application ARN.
+    Default: ""
     
-
-Metadata:
-  AWS::CloudFormation::Interface:
-    ParameterGroups:
-    - Label:
-        default: "Connection Details"
-      Parameters:
-      - PortNumber
 Resources:
   QManagedPolicy:
     Type: AWS::IAM::ManagedPolicy
@@ -56,16 +52,114 @@ Resources:
         Statement:
         - Effect: Allow
           Principal:
+            AWS:
+            - !Sub arn:aws:iam::${AWS::AccountId}:root
+          Action:
+          - sts:AssumeRole
+          - sts:SetContext
+          Condition:
+            ArnEquals:
+              "aws:PrincipalArn": !GetAtt EC2ServiceRole.Arn
+      Path: /
+      ManagedPolicyArns:
+      - !Ref QManagedPolicy
+  
+  EC2ServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal:
             Service:
             - ec2.amazonaws.com
           Action:
-          - sts:AssumeRole
+          - sts:AssumeRole    
       Path: /
       ManagedPolicyArns:
-      - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
-      - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
-      - !Ref QManagedPolicy
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
   
+  EC2ServicePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Roles:
+        - !Ref EC2ServiceRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Sid: AllowAssumeQRole
+          Effect: Allow
+          Action:
+          - "sts:AssumeRole"
+          - "sts:SetContext"
+          Resource: !GetAtt QServiceRole.Arn
+        - Sid: AllowTokenExchange
+          Effect: Allow
+          Action:
+            - sso-oauth:CreateTokenWithIAM
+          Resource: "*"
+        - Sid: AllowAppConfig
+          Effect: Allow
+          Action:
+            - "appconfig:StartConfigurationSession"
+            - "appconfig:GetLatestConfiguration"
+          Resource: "*"
+
+  AppConfig:
+    Type: AWS::AppConfig::Application
+    Properties:
+      Name: qcustomwebui
+  
+  AppConfigEnvironment:
+    Type: AWS::AppConfig::Environment
+    Properties:
+      ApplicationId: !Ref AppConfig
+      Name: qcustomwebui-env
+  
+  AppConfigConfigProfile:
+    Type: AWS::AppConfig::ConfigurationProfile
+    Properties:
+      ApplicationId: !Ref AppConfig
+      Name: qcustomwebui-config
+      LocationUri: "hosted"
+  
+  AppConfigConfigVersion:
+    Type: AWS::AppConfig::HostedConfigurationVersion
+    Properties:
+      ApplicationId: !Ref AppConfig
+      ConfigurationProfileId: !Ref AppConfigConfigProfile
+      ContentType: "application/json"
+      Content: !Sub |
+        {
+          "AmazonQAppId": "${QApplicationId}",
+          "IamRoleArn": "${QServiceRole.Arn}",
+          "Region": "${AWS::Region}",
+          "IdcApplicationArn": "${IdcApplicationArn}",
+          "OAuthConfig": {
+            "ClientId": "${UserPoolClient}",
+            "ExternalDns": "${LowerCaseFqdn.Output}",
+            "CognitoDomain" : "${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com"
+          }
+        }
+  AppConfigDeployment:
+    Type: AWS::AppConfig::Deployment
+    Properties:
+      ApplicationId: !Ref AppConfig
+      ConfigurationProfileId: !Ref AppConfigConfigProfile
+      ConfigurationVersion: !GetAtt AppConfigConfigVersion.VersionNumber
+      EnvironmentId: !Ref AppConfigEnvironment
+      DeploymentStrategyId: !Ref AppConfigDeploymentStrategy
+  
+  AppConfigDeploymentStrategy:
+    Type: AWS::AppConfig::DeploymentStrategy
+    Properties:
+      DeploymentDurationInMinutes: 0
+      FinalBakeTimeInMinutes: 0
+      GrowthFactor: 100
+      Name: "Quick deployment"
+      ReplicateTo: "NONE"
+      GrowthType: "LINEAR"
   # EC2 and ALB Security Groups
   ELBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -73,18 +167,24 @@ Resources:
       GroupDescription: ELB Security Group
       VpcId: !Ref VpcId
       SecurityGroupIngress:
-      - IpProtocol: tcp
-        FromPort: 443
-        ToPort: 443
-        CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
 
   ELBSecurityGroupSelfReferenceEgress:
     Type: AWS::EC2::SecurityGroupEgress
     Properties:
-      Description: Allow all outbound traffic
-      GroupId: !GetAtt [ELBSecurityGroup, GroupId]
-      IpProtocol: "-1"
-      CidrIp: 0.0.0.0/0
+      Description: Allow outbound traffic to EC2 Instance
+      GroupId: !Ref ELBSecurityGroup
+      IpProtocol: "tcp"
+      FromPort: 8080
+      ToPort: 8080
+      DestinationSecurityGroupId: !Ref SecurityGroup
 
   SecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -114,23 +214,12 @@ Resources:
     Properties:
       Path: "/"
       Roles:
-      - !Ref QServiceRole
+      - !Ref EC2ServiceRole
 
   EC2Instance:
     Type: AWS::EC2::Instance
-    Metadata:
-      Comment1: Configure bootstrap packages
-      'AWS::CloudFormation::Init':
-        configSets:
-          Install:
-          - Install
-        Install:
-          packages:
-            yum:
-              git: []
-              wget: []
     Properties:
-      InstanceType: t2.micro
+      InstanceType: t3.micro
       IamInstanceProfile: !Ref EC2InstanceProfile
       SubnetId: !Select [0, !Ref PublicSubnetIds]
       SecurityGroupIds:
@@ -139,37 +228,22 @@ Resources:
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash
-          amazon-linux-extras install python3.8
-          rm /usr/bin/python3
-          ln -s /usr/bin/python3.8 /usr/bin/python3
-          yum install git -y
-          wget https://bootstrap.pypa.io/get-pip.py
-          python3 get-pip.py
-          python3 -m pip install streamlit==1.28.1
-          python3 -m pip install streamlit-feedback
-          python3 -m pip install boto3
-          python3 -m pip install pyjwt
-          cd /home/ec2-user
-          git clone https://github.com/aws-samples/custom-web-experience-with-amazon-q-business.git
-          chmod -R 777 custom-web-experience-with-amazon-q-business
-          write_value() {
-              local file=$1
-              local section=$2
-              local key=$3
-              local value=$4
-
-  
-              if ! grep -q "^\[$section\]" "$file"; then
-              echo "[$section]" >> "$file"
-              fi
-
-              # Replace or add the key-value pair
-              sed -i "/$key/d" "$file"
-              echo "$key=$value" >> "$file"
-            }
-          ini_file="custom-web-experience-with-amazon-q-business/core/data_feed_config.ini"
-          write_value "$ini_file" "GLOBAL" "amazon_q_app_id" ${QApplicationId}
-          nohup /usr/local/bin/streamlit run ~/custom-web-experience-with-amazon-q-business/core/chatbotQ_app.py --server.port=8080 > logs.txt &
+          dnf -y install python3.11 python3.11-pip git
+          dnf -y install https://s3.amazonaws.com/aws-appconfig-downloads/aws-appconfig-agent/linux/x86_64/latest/aws-appconfig-agent.rpm
+          mkdir /etc/systemd/system/aws-appconfig-agent.service.d
+          echo "[Service]" > /etc/systemd/system/aws-appconfig-agent.service.d/overrides.conf 
+          echo "Environment=SERVICE_REGION=${AWS::Region}" >> /etc/systemd/system/aws-appconfig-agent.service.d/overrides.conf
+          systemctl daemon-reload
+          systemctl enable aws-appconfig-agent
+          systemctl restart aws-appconfig-agent
+          cd /opt
+          git clone https://github.com/j2clerck/custom-web-experience-with-amazon-q-business.git
+          cd custom-web-experience-with-amazon-q-business/
+          git checkout idc
+          pip3.11 install virtualenv
+          python3.11 -m virtualenv venv
+          venv/bin/pip install -r requirements.txt
+          APPCONFIG_APP_NAME=${AppConfig} APPCONFIG_ENV_NAME=${AppConfigEnvironment} APPCONFIG_CONF_NAME=${AppConfigConfigProfile} nohup venv/bin/streamlit run core/cognito.py --server.port=8080 > logs.txt &
       Tags:
       - Key: Name
         Value: ec2-q-client
@@ -196,8 +270,6 @@ Resources:
       UnhealthyThresholdCount: 3
       VpcId: !Ref VpcId
 
-
-
   UserPool:
     Type: "AWS::Cognito::UserPool"
     Properties:
@@ -213,11 +285,9 @@ Resources:
 
   UserPoolClient:
     Type: "AWS::Cognito::UserPoolClient"
-    DependsOn:
-      - ApplicationLoadBalancer
     Properties:
       ClientName: !Sub ${AuthName}-client
-      GenerateSecret: true
+      GenerateSecret: false
       UserPoolId: !Ref UserPool
       AllowedOAuthFlowsUserPoolClient: True
       AllowedOAuthFlows:
@@ -227,7 +297,7 @@ Resources:
       SupportedIdentityProviders:
       - COGNITO
       CallbackURLs:
-      - !Sub "https://replace_your_LB_url_here/oauth2/idpresponse"
+      - !Sub "https://${LowerCaseFqdn.Output}/component/streamlit_oauth.authorize_button/index.html"
 
   UserPoolDomain:
     Type: "AWS::Cognito::UserPoolDomain"
@@ -244,15 +314,26 @@ Resources:
       Certificates:
       - CertificateArn: !Ref CertificateARN
       DefaultActions:
-      - Type: 'authenticate-cognito'
-        AuthenticateCognitoConfig:
-          UserPoolArn: !GetAtt 'UserPool.Arn'
-          UserPoolClientId: !Ref UserPoolClient
-          UserPoolDomain: !Ref UserPoolDomain
-        Order: 1
       - Type: forward
         TargetGroupArn: !Ref EC2TargetGroup
-        Order: 2
+        Order: 1
+  
+  ALBListener80:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Order: 1
+          RedirectConfig: 
+            Protocol: "HTTPS"
+            Port: "443"
+            Host: "#{host}"
+            Path: "/#{path}"
+            Query: "#{query}"
+            StatusCode: "HTTP_301"
+          Type: "redirect"
 
   ApplicationLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
@@ -262,10 +343,59 @@ Resources:
       - !Select [0, !Ref PublicSubnetIds]
       - !Select [1, !Ref PublicSubnetIds]
       SecurityGroups:
-      - !GetAtt ELBSecurityGroup.GroupId
+      - !Ref ELBSecurityGroup
+  
+  LowerCaseFqdn:
+    Type: Custom::LowerCaseFqdn
+    Properties:
+      ServiceToken: !GetAtt LowerCaseFunction.Arn
+      Input: !GetAtt ApplicationLoadBalancer.DNSName
+
+  LowerCaseFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Role: !GetAtt LowerCaseRole.Arn
+      Code:
+        ZipFile: |
+          import cfnresponse
+          def error_handler(func):
+            def wrapper(*args, **kwargs):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    logger.error(e)
+                    cfnresponse.send(args[0], args[1], cfnresponse.FAILED, {})
+                    return None
+            return wrapper
+
+          @error_handler
+          def handler(event, context):
+            if event["RequestType"] in ["Create", "Update"]:
+              response = {}
+              cfnresponse.send(event, context, cfnresponse.SUCCESS, {"Output": event['ResourceProperties']['Input'].lower()})
+            if event["RequestType"] == "Delete":
+              cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+      Runtime: python3.12
+      Timeout: 60
+  
+  LowerCaseRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+      - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 
 Outputs:
- 
   QServiceRoleNameArn:
     Description: Name of Q Role with ARN FN tag
     Value:
@@ -273,4 +403,13 @@ Outputs:
   URL:
     Description: Use this URL to update the callback URL in Cognito User Pool client and also to access the app
     Value:
-      Fn::GetAtt: [ApplicationLoadBalancer, DNSName]
+      !Sub https://${ApplicationLoadBalancer.DNSName}
+  TrustedIssuerUrl:
+    Description: Endpoint of the trusted issuer to setup Identity Center
+    Value: !GetAtt UserPool.ProviderURL
+  Audience:
+    Description: Audience to setup customer application in Identity Center
+    Value: !Ref UserPoolClient
+  RoleArn:
+    Description: "ARN of the IAM role required to setup token exchange in Identity Center"
+    Value: !GetAtt EC2ServiceRole.Arn

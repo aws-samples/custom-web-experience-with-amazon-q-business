@@ -1,42 +1,101 @@
 import boto3
-import time
-from io import StringIO
-from configparser import ConfigParser
-import json
 import os
-import boto3
+import logging
+import jwt
+import datetime
+import urllib3
+from streamlit_oauth import OAuth2Component
 
-# Initialize the ConfigParser object
-config = ConfigParser()
+
+logger = logging.getLogger()
 
 # Read the configuration file
-config.read(os.path.join(os.path.dirname(__file__), 'data_feed_config.ini'))   
-region = config["GLOBAL"]["region"]
-amazon_q_app_id = config["GLOBAL"]["amazon_q_app_id"]
+APPCONFIG_APP_NAME = os.environ["APPCONFIG_APP_NAME"]
+APPCONFIG_ENV_NAME = os.environ["APPCONFIG_ENV_NAME"]
+APPCONFIG_CONF_NAME = os.environ["APPCONFIG_CONF_NAME"]
+AWS_CREDENTIALS = {}
+AMAZON_Q_APP_ID = None
+IAM_ROLE = None
+REGION = None
+IDC_APPLICATION_ID = None
+OAUTH_CONFIG = {}
+
+def retrieve_config_from_agent():
+    global IAM_ROLE, REGION, IDC_APPLICATION_ID, AMAZON_Q_APP_ID, OAUTH_CONFIG
+    config = urllib3.request("GET", f"http://localhost:2772/applications/{APPCONFIG_APP_NAME}/environments/{APPCONFIG_ENV_NAME}/configurations/{APPCONFIG_CONF_NAME}").json()
+    IAM_ROLE = config["IamRoleArn"]
+    REGION = config["Region"]
+    IDC_APPLICATION_ID = config["IdcApplicationArn"]
+    AMAZON_Q_APP_ID = config["AmazonQAppId"]
+    OAUTH_CONFIG = config["OAuthConfig"]
+    return config
+
+def configure_oauth_component():
+    external_dns = OAUTH_CONFIG["ExternalDns"]
+    cognito_domain = OAUTH_CONFIG["CognitoDomain"]
+    authorize_url = f"https://{cognito_domain}/oauth2/authorize"
+    token_url = f"https://{cognito_domain}/oauth2/token"
+    refresh_token_url = f"https://{cognito_domain}/oauth2/token"
+    revoke_token_url = f"https://{cognito_domain}/oauth2/revoke"
+    client_id = OAUTH_CONFIG["ClientId"]
+    # Create OAuth2Component instance
+    return OAuth2Component(client_id, None, authorize_url, token_url, refresh_token_url, revoke_token_url)
+
+def get_iam_oidc_token(id_token):
+    client = boto3.client('sso-oidc', region_name=REGION)
+    response = client.create_token_with_iam(
+        clientId=IDC_APPLICATION_ID,
+        grantType='urn:ietf:params:oauth:grant-type:jwt-bearer',
+        assertion=id_token
+    )
+    return response
+
+def assume_role_with_token(iam_token):
+    global AWS_CREDENTIALS
+    print(iam_token)
+    decoded_token = jwt.decode(iam_token, options={"verify_signature": False})
+    sts_client = boto3.client("sts", region_name=REGION)
+    response = sts_client.assume_role(
+        RoleArn=IAM_ROLE,
+        RoleSessionName="qapp",
+        ProvidedContexts=[
+            {
+                "ProviderArn": "arn:aws:iam::aws:contextProvider/IdentityCenter",
+                "ContextAssertion": decoded_token["sts:identity_context"],
+            }
+        ],
+    )
+    AWS_CREDENTIALS = response["Credentials"]
+    return response
 
 
 # This method create the Q client
-def get_qclient():
+def get_qclient(access_token: str):
     # Create a boto3 client for Amazon Q Business
-    amazon_q = boto3.client('qbusiness',region)
+    if not AWS_CREDENTIALS or AWS_CREDENTIALS['Expiration'] < datetime.datetime.now(datetime.timezone.utc):
+        assume_role_with_token(access_token)
+    session = boto3.Session(
+        aws_access_key_id=AWS_CREDENTIALS['AccessKeyId'],
+        aws_secret_access_key=AWS_CREDENTIALS['SecretAccessKey'],
+        aws_session_token=AWS_CREDENTIALS['SessionToken']
+    )
+    amazon_q = session.client('qbusiness',REGION)
     return amazon_q
 
 # This code invoke chat_sync api and format the response for UI
-def get_queue_chain(prompt_input,user_id, conversationId, parentMessageId):
-    amazon_q = get_qclient()
+def get_queue_chain(prompt_input,user_id, conversationId, parentMessageId, access_token):
+    amazon_q = get_qclient(access_token)
     if conversationId != '':
      answer = amazon_q.chat_sync(
-        applicationId=amazon_q_app_id,
+        applicationId=AMAZON_Q_APP_ID,
         userMessage=prompt_input,
-        userId = user_id,
         conversationId = conversationId,
         parentMessageId = parentMessageId
     )
     else:
         answer = amazon_q.chat_sync(
-        applicationId=amazon_q_app_id,
-        userMessage=prompt_input,
-        userId = user_id)
+        applicationId=AMAZON_Q_APP_ID,
+        userMessage=prompt_input)
 
     system_message = answer.get('systemMessage', '')
     conversationId = answer.get('conversationId', '')
