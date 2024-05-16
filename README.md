@@ -2,30 +2,25 @@
 
 Customers often want the ability to integrate custom functionalities into the Amazon Q user interface, such as handling feedback, using corporate colors and templates, custom login, and reducing context switching by integrating the user interface into a single platform. The code repo will show how to integrate a custom UI on Amazon Q using Amazon Cognito for user authentication and Amazon Q SDK to invoke chatbot application programmatically.
 
-<img src="docs/arch.jpg" alt="Architecture Diagram" width="400"/>
+<img src="docs/Architecture.png" alt="Architecture Diagram" width="400"/>
 
 The workflow includes the following steps:
 1.	First the user accesses the chatbot application, which is hosted behind an Application Load Balancer.
 
-2.	On the first log in attempt the user is redirected to the Amazon Cognito log in page for authentication. After successful authentication, the user is redirected back to the chatbot application.
+2.	The user is prompted to log with Cognito
 
-3.	The UI application is deployed on EC2 instance, performs below two actions:
+3.  The UI application exchanges the token from Cognito with an IAM Identity Center token with the scope for Amazon Q
 
-    * The custom UI, parses the token provided by Amazon Cognito and to obtain the user and group information. The Amazon Q chat responses are only generated from the documents that the user and group have access to within an Amazon Q application. The Amazon Q documentation provides more information on how to configure access control list (ACL) for each data source. 
-  
-    * The user can ask the question in the chat window. The UI sends the userMessage and the Identifier returned from the Amazon Cognito for the user to Amazon Q API.
+4.  The UI applications assumes an IAM role and retrieve an AWS Session from Secure Token Service (STS), augmented with the IAM Identity Center token to interact with Amazon Q
 
-4.	Amazon Q uses the chat_sync API to carry out the conversation.
+
+5.	Amazon Q uses the ChatSync API to carry out the conversation. Thanks to the identity-aware session, Amazon Q knows which user it is interacting with.
 	
-    *  The request uses the following mandatory parameters
+    *  The request uses the following mandatory parameters. 
 
         1.	**applicationId**: The identifier of the Amazon Q application linked to the Amazon	 Q conversation.
       
-        2.	**userId**: The identifier of the user attached to the chat input. In our case it will be email Id. Each document in any data source has access control list (ACL) information inherently attached to it as metadata. ACLs contain information about which users and groups have access to a document. When we choose to crawl ACL Amazon Q stores which user IDs have access to a document.
-      
-        3.	**userMessage**: A end user message in a conversation.
-      
-        4.	**userGroups[optional]**: The Groups that a user associated with the chat input belongs to. User group information can be fetched from the token after successful authentication and that can be passed to the API to get the relevant documents from Amazon Q.In this post we are not using group information for ACL.
+        2.	**userMessage**: An end user message in a conversation.
       
     * Amazon Q returns the response as a JSON object (detailed in the  [Amazon Q documentation](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/qbusiness/client/chat_sync.html)) and below are the few core attributes from the response payload.
       1.	**systemMessage**: An AI-generated message in a conversation
@@ -61,7 +56,7 @@ openssl req \
 
 aws acm import-certificate --certificate fileb://cert.pem --private-key fileb://key.pem
 ```
-Please note that, you will receive a warning from your browser when accessing the UI if you didn't provide a custom SSL certificate when launching the AWS CloudFormation Stack. Above instructions show you 
+
 Please note that you will receive a warning from your browser when accessing the UI if you did not provide a custom SSL certificate when launching the AWS CloudFormation Stack. The above instructions show you how to create a self-signed certificate, which can be used as a backup, but this is certainly not recommended for production use cases.  
 
 You should obtain an SSL Certificate that has been validated by a certificate authority, import it into AWS Certificate Manager, and reference it when launching the AWS CloudFormation Stack.  
@@ -71,10 +66,10 @@ If you wish to continue with the self-signed certificate (for development purpos
 
 ### Deploy this Solution: 
 
-Step 1: Launch the following AWS CloudFormation template to deploy ELB , Cognto User pool , including the EC2 instance to host the webapp.
+Step 1: Launch the following AWS CloudFormation template to deploy ELB , Cognito User pool , including the EC2 instance to host the webapp.
 ---------------------------------------------------------------------
 
-Provide the following parameters for stack
+⚙️ Provide the following parameters for stack
 
 •	**Stack name** – The name of the CloudFormation stack (for example, AmazonQ-UI-Demo)
 
@@ -82,7 +77,7 @@ Provide the following parameters for stack
 
 •	**CertificateARN** – The CertificateARN generated from the previous step
 
-•	**IdcApplicationArn** – Identity Center customer application ARN , keep it blank on first run as we need to create the cognito user pool as part of this stack to create [IAM Idenity Center application with a trusted token issuer](https://docs.aws.amazon.com/singlesignon/latest/userguide/using-apps-with-trusted-token-issuer.html)
+•	**IdcApplicationArn** – Identity Center customer application ARN , keep it blank on first run as we need to create the cognito user pool as part of this stack to create [IAM Identity Center application with a trusted token issuer](https://docs.aws.amazon.com/singlesignon/latest/userguide/using-apps-with-trusted-token-issuer.html)
 
 •	**PublicSubnetIds** – The ID of the public subnet that can be used to deploy the EC2 instance and the Application Load Balancer
 
@@ -108,7 +103,7 @@ Provide the following parameters for stack
 **URL** : The Load balancer URL to access the streamlit app
 
 
-Step 2: Create an IAM Idenity Center Application 
+Step 2: Create an IAM Identity Center Application 
 ---------------------------------------------------------------------
 
 - Navigate to AWS IAM Identity Center, and add a new custom managed application.
@@ -145,7 +140,7 @@ Step 2: Create an IAM Idenity Center Application
 
 <img src="docs/iamidcapp_10.png" alt="IAM IDC application" width="400"/>
 
- - Then set up the Trusted application for identity propagation , follow the below stpes to Amazon Q as Trusted applications for identity propagation
+ - Then set up the Trusted application for identity propagation , follow the below steps to Amazon Q as Trusted applications for identity propagation
 
 <img src="docs/iamidcapp_6.png" alt="IAM IDC application" width="400"/>
 
@@ -161,21 +156,19 @@ Step 5 : Once the update is complete , navigate to Cloudformation output tab cop
 Step 6 : Streamlit app will prompt to **Connect with Cognito** , For the first login attempt try to Sign up , use the same email id and password for the user that is already exist in IAM Identity Center.
 
 
-⚡ For a better user onboarding experience we can follow the below link to create a second custom app (SAML) in Identity Center to act as the Identity Provider for the Cognito User Pool,removing the need to povision users in both Cognito User Pool and Identity Center.
+⚡ For a better user onboarding experience we can follow the below link to create a second custom app (SAML) in Identity Center to act as the Identity Provider for the Cognito User Pool,removing the need to provision users in both Cognito User Pool and Identity Center.
 
-[Video](https://www.youtube.com/watch?v=c-hpNhVGnj0&t=522s)
+🔗 [Video](https://www.youtube.com/watch?v=c-hpNhVGnj0&t=522s)
 
-[Instructions](https://repost.aws/knowledge-center/cognito-user-pool-iam-integration)
+🔗 [Instructions](https://repost.aws/knowledge-center/cognito-user-pool-iam-integration)
 
 
 Connect to the EC2 through AWS Session Manager[Optional]: 
 ---------------------------------------------------------------------
 
 ```
-sudo su ec2-user
-cd /home/ec2-user
-ls
-cd custom-web-experience-with-amazon-q-business/core
+sudo -i
+cd /opt/custom-web-experience-with-amazon-q-business
 ```
 
 ## Security

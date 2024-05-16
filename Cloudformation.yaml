@@ -37,23 +37,22 @@ Resources:
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
-        - Sid: AllowQfunctions
+        - Sid: AllowQChat
           Effect: Allow
           Action:
           - "qbusiness:ChatSync"
-          Resource: "*"
+          Resource: !Sub "arn:${AWS::Partition}:qbusiness:${AWS::Region}:${AWS::AccountId}:application/${QApplicationId}"
         
   QServiceRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: QcustomwebUIRole
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
         - Effect: Allow
           Principal:
             AWS:
-            - !Sub arn:aws:iam::${AWS::AccountId}:root
+            - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
           Action:
           - sts:AssumeRole
           - sts:SetContext
@@ -82,6 +81,10 @@ Resources:
   
   EC2ServicePolicy:
     Type: AWS::IAM::ManagedPolicy
+    Metadata:
+      guard:
+        SuppressedRules:
+          - IAM_POLICYDOCUMENT_NO_WILDCARD_RESOURCE # CreateTokenWithIAM requires wildcard
     Properties:
       Roles:
         - !Ref EC2ServiceRole
@@ -97,14 +100,15 @@ Resources:
         - Sid: AllowTokenExchange
           Effect: Allow
           Action:
-            - sso-oauth:CreateTokenWithIAM
-          Resource: "*"
+            - "sso-oauth:CreateTokenWithIAM"
+          Resource: "*" 
         - Sid: AllowAppConfig
           Effect: Allow
           Action:
             - "appconfig:StartConfigurationSession"
             - "appconfig:GetLatestConfiguration"
-          Resource: "*"
+          Resource: 
+            - !Sub "arn:${AWS::Partition}:appconfig:${AWS::Region}:${AWS::AccountId}:application/${AppConfig}/environment/${AppConfigEnvironment}/configuration/${AppConfigConfigProfile}"
 
   AppConfig:
     Type: AWS::AppConfig::Application
@@ -163,6 +167,12 @@ Resources:
   # EC2 and ALB Security Groups
   ELBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
+    Metadata:
+      guard:
+        SuppressedRules:
+        - EC2_SECURITY_GROUP_INGRESS_OPEN_TO_WORLD_RULE # This SG only applies to Internet facing ALB
+        - SECURITY_GROUP_INGRESS_CIDR_NON_32_RULE
+        - SECURITY_GROUP_MISSING_EGRESS_RULE
     Properties:
       GroupDescription: ELB Security Group
       VpcId: !Ref VpcId
@@ -171,12 +181,14 @@ Resources:
           FromPort: 443
           ToPort: 443
           CidrIp: 0.0.0.0/0
+          Description: HTTPS from Internet
         - IpProtocol: tcp
           FromPort: 80
           ToPort: 80
           CidrIp: 0.0.0.0/0
+          Description: HTTP from Internet
 
-  ELBSecurityGroupSelfReferenceEgress:
+  ELBSecurityGroupEgress:
     Type: AWS::EC2::SecurityGroupEgress
     Properties:
       Description: Allow outbound traffic to EC2 Instance
@@ -188,6 +200,10 @@ Resources:
 
   SecurityGroup:
     Type: AWS::EC2::SecurityGroup
+    Metadata:
+      guard:
+        SuppressedRules:
+        - SECURITY_GROUP_MISSING_EGRESS_RULE
     Properties:
       GroupDescription: EC2 Security group
       VpcId: !Ref VpcId  
@@ -195,16 +211,19 @@ Resources:
       - IpProtocol: tcp
         FromPort: 8080
         ToPort: 8080
-        SourceSecurityGroupId:
-          Fn::GetAtt:
-          - ELBSecurityGroup
-          - GroupId
+        SourceSecurityGroupId: !Ref ELBSecurityGroup
+        Description: Allow inbound traffic from ALB
 
-  SecurityGroupSelfReferenceEgress:
+  SecurityGroupEgress:
     Type: AWS::EC2::SecurityGroupEgress
+    Metadata:
+      guard:
+        SuppressedRules:
+        - EC2_SECURITY_GROUP_EGRESS_OPEN_TO_WORLD_RULE
+        - SECURITY_GROUP_EGRESS_ALL_PROTOCOLS_RULE
     Properties:
       Description: Allow all outbound traffic
-      GroupId: !GetAtt [SecurityGroup, GroupId]
+      GroupId: !Ref SecurityGroup
       IpProtocol: "-1"
       CidrIp: 0.0.0.0/0
 
@@ -216,36 +235,85 @@ Resources:
       Roles:
       - !Ref EC2ServiceRole
 
-  EC2Instance:
-    Type: AWS::EC2::Instance
+  AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
-      InstanceType: t3.micro
-      IamInstanceProfile: !Ref EC2InstanceProfile
-      SubnetId: !Select [0, !Ref PublicSubnetIds]
-      SecurityGroupIds:
-      - Ref: SecurityGroup
-      ImageId: !Ref 'LatestAmiId'
-      UserData:
-        Fn::Base64: !Sub |
-          #!/bin/bash
-          dnf -y install python3.11 python3.11-pip git
-          dnf -y install https://s3.amazonaws.com/aws-appconfig-downloads/aws-appconfig-agent/linux/x86_64/latest/aws-appconfig-agent.rpm
-          mkdir /etc/systemd/system/aws-appconfig-agent.service.d
-          echo "[Service]" > /etc/systemd/system/aws-appconfig-agent.service.d/overrides.conf 
-          echo "Environment=SERVICE_REGION=${AWS::Region}" >> /etc/systemd/system/aws-appconfig-agent.service.d/overrides.conf
-          systemctl daemon-reload
-          systemctl enable aws-appconfig-agent
-          systemctl restart aws-appconfig-agent
-          cd /opt
-          git clone https://github.com/aws-samples/custom-web-experience-with-amazon-q-business.git
-          cd custom-web-experience-with-amazon-q-business/
-          pip3.11 install virtualenv
-          python3.11 -m virtualenv venv
-          venv/bin/pip install -r requirements.txt
-          APPCONFIG_APP_NAME=${AppConfig} APPCONFIG_ENV_NAME=${AppConfigEnvironment} APPCONFIG_CONF_NAME=${AppConfigConfigProfile} nohup venv/bin/streamlit run core/cognito.py --server.port=8080 > logs.txt &
+      MaxSize: 1
+      MinSize: 1
+      DesiredCapacity: 1
+      TargetGroupARNs:
+        - !Ref EC2TargetGroup
+      HealthCheckType: ELB
+      HealthCheckGracePeriod: 180
+      VPCZoneIdentifier: !Ref PublicSubnetIds
+
+      LaunchTemplate:
+        Version: !GetAtt LaunchTemplate.LatestVersionNumber
+        LaunchTemplateId: !Ref LaunchTemplate
       Tags:
-      - Key: Name
-        Value: ec2-q-client
+        - Key: Name
+          Value: Custom Q UI
+          PropagateAtLaunch: true
+  
+  LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        EbsOptimized: true
+        ImageId: !Ref 'LatestAmiId'
+        InstanceType: t3.micro
+        IamInstanceProfile:
+          Arn: !GetAtt EC2InstanceProfile.Arn
+        SecurityGroupIds:
+          - !Ref SecurityGroup
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash
+            max_attempts=5
+            attempt_num=1
+            success=false
+            while [ $success = false ] && [ $attempt_num -le $max_attempts ]; do
+              echo "Trying dnf install"
+              dnf -y install python3.11 python3.11-pip git
+              # Check the exit code of the command
+              if [ $? -eq 0 ]; then
+                echo "Yum install succeeded"
+                success=true
+              else
+                echo "Attempt $attempt_num failed. Sleeping for 3 seconds and trying again..."
+                sleep 3
+                ((attempt_num++))
+              fi
+            done
+            max_attempts=5
+            attempt_num=1
+            success=false
+            while [ $success = false ] && [ $attempt_num -le $max_attempts ]; do
+              echo "Trying dnf install"
+              dnf -y install https://s3.amazonaws.com/aws-appconfig-downloads/aws-appconfig-agent/linux/x86_64/latest/aws-appconfig-agent.rpm
+              # Check the exit code of the command
+              if [ $? -eq 0 ]; then
+                echo "Yum install succeeded"
+                success=true
+              else
+                echo "Attempt $attempt_num failed. Sleeping for 3 seconds and trying again..."
+                sleep 3
+                ((attempt_num++))
+              fi
+            done
+            mkdir /etc/systemd/system/aws-appconfig-agent.service.d
+            echo "[Service]" > /etc/systemd/system/aws-appconfig-agent.service.d/overrides.conf 
+            echo "Environment=SERVICE_REGION=${AWS::Region}" >> /etc/systemd/system/aws-appconfig-agent.service.d/overrides.conf
+            systemctl daemon-reload
+            systemctl enable aws-appconfig-agent
+            systemctl restart aws-appconfig-agent
+            cd /opt
+            git clone https://github.com/aws-samples/custom-web-experience-with-amazon-q-business.git
+            cd custom-web-experience-with-amazon-q-business/
+            pip3.11 install virtualenv
+            python3.11 -m virtualenv venv
+            venv/bin/pip install -r requirements.txt
+            APPCONFIG_APP_NAME=${AppConfig} APPCONFIG_ENV_NAME=${AppConfigEnvironment} APPCONFIG_CONF_NAME=${AppConfigConfigProfile} nohup venv/bin/streamlit run src/app.py --server.port=8080 > logs.txt & 
 
     # Target Group, Listener and Application  Load Balancer
   EC2TargetGroup:
@@ -263,14 +331,15 @@ Resources:
       TargetGroupAttributes:
       - Key: deregistration_delay.timeout_seconds
         Value: '20'
-      Targets:
-      - Id: !Ref EC2Instance
-        Port: 8080
       UnhealthyThresholdCount: 3
       VpcId: !Ref VpcId
 
   UserPool:
-    Type: "AWS::Cognito::UserPool"
+    Type: AWS::Cognito::UserPool
+    Metadata:
+      guard:
+        SuppressedRules:
+          - COGNITO_USER_POOL_MFA_CONFIGURATION_RULE # Not required for the demo
     Properties:
       UserPoolName: !Sub ${AuthName}-user-pool
       AutoVerifiedAttributes:
@@ -283,7 +352,7 @@ Resources:
         Required: true
 
   UserPoolClient:
-    Type: "AWS::Cognito::UserPoolClient"
+    Type: AWS::Cognito::UserPoolClient
     Properties:
       ClientName: !Sub ${AuthName}-client
       GenerateSecret: false
@@ -299,17 +368,22 @@ Resources:
       - !Sub "https://${LowerCaseFqdn.Output}/component/streamlit_oauth.authorize_button/index.html"
 
   UserPoolDomain:
-    Type: "AWS::Cognito::UserPoolDomain"
+    Type: AWS::Cognito::UserPoolDomain
     Properties:
       UserPoolId: !Ref UserPool
       Domain: !Sub ${AuthName}-dns-testname
 
   ALBListener2:
     Type: AWS::ElasticLoadBalancingV2::Listener
+    Metadata:
+      guard:
+        SuppressedRules:
+        - ELBV2_ACM_CERTIFICATE_REQUIRED # Certificate is loaded externally for the demo
     Properties:
       LoadBalancerArn: !Ref ApplicationLoadBalancer
       Port: 443
       Protocol: HTTPS
+      SslPolicy: ELBSecurityPolicy-TLS13-1-2-2021-06
       Certificates:
       - CertificateArn: !Ref CertificateARN
       DefaultActions:
@@ -319,6 +393,11 @@ Resources:
   
   ALBListener80:
     Type: AWS::ElasticLoadBalancingV2::Listener
+    Metadata:
+      guard:
+        SuppressedRules:
+        - ELBV2_LISTENER_PROTOCOL_RULE # Not required for the demo
+        - ELBV2_LISTENER_SSL_POLICY_RULE # NO SSL Policy for an HTTP listener
     Properties:
       LoadBalancerArn: !Ref ApplicationLoadBalancer
       Port: 80
@@ -336,6 +415,11 @@ Resources:
 
   ApplicationLoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Metadata:
+      guard:
+        SuppressedRules:
+        - ELB_DELETION_PROTECTION_ENABLED # Not required for the demo
+        - ELBV2_ACCESS_LOGGING_RULE # Not required for the demo
     Properties:
       Scheme: internet-facing
       Subnets:
@@ -352,6 +436,12 @@ Resources:
 
   LowerCaseFunction:
     Type: AWS::Lambda::Function
+    Metadata:
+      guard:
+        SuppressedRules:
+        - LAMBDA_DLQ_CHECK # This a synchronous call no need for DLQ
+        - LAMBDA_INSIDE_VPC # No need for VPC
+        - LAMBDA_CONCURRENCY_CHECK # Not required for the demo
     Properties:
       Handler: index.handler
       Role: !GetAtt LowerCaseRole.Arn
@@ -395,10 +485,6 @@ Resources:
       - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 
 Outputs:
-  QServiceRoleNameArn:
-    Description: Name of Q Role with ARN FN tag
-    Value:
-      Fn::GetAtt: [QServiceRole, Arn]
   URL:
     Description: URL to access the Streamlit APP
     Value:
