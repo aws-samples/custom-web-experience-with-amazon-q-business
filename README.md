@@ -153,7 +153,7 @@ Step 2: Create an IAM Identity Center Application
 
 <img src="docs/iamidcapp_8.png" alt="IAM IDC application" width="400"/>
 
-Step 4: Once the IAM Identity Center application is created, copy the Application ARN and navigate to cloudformation to update the stack . Enter the Application ARN in parameter ***IdcApplicationArn*** and run the stack
+Step 4: Once the IAM Identity Center application is created, copy the Application ARN and navigate to cloudformation to update the stack . Enter the Identity Center Application ARN in parameter ***IdcApplicationArn*** and run the stack
 
 
 Step 5 : Once the update is complete , navigate to Cloudformation output tab to copy the URL and open the URL in a browser
