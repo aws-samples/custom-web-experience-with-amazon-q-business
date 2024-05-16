@@ -15,6 +15,7 @@ Customers often want the ability to integrate custom functionalities into the Am
 
 4.  The UI applications assumes an IAM role and retrieve an AWS Session from Secure Token Service (STS), augmented with the IAM Identity Center token to interact with Amazon Q
     * Detial flow of token exchange between IAM Identity Center and Idp is explained in below blog posts
+    
     🔗 [Blog 1](https://aws.amazon.com/blogs/storage/how-to-develop-a-user-facing-data-application-with-iam-identity-center-and-s3-access-grants/)
 
     🔗 [Blog 2](https://aws.amazon.com/blogs/storage/how-to-develop-a-user-facing-data-application-with-iam-identity-center-and-s3-access-grants-part-2/)
