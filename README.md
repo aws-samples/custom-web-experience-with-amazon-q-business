@@ -17,7 +17,7 @@ Customers often want the ability to integrate custom functionalities into the Am
     * Detial flow of token exchange between IAM Identity Center and Idp is explained in below blog posts
     🔗 [Blog 1](https://aws.amazon.com/blogs/storage/how-to-develop-a-user-facing-data-application-with-iam-identity-center-and-s3-access-grants/)
 
-    🔗 [Blog 2]([https://aws.amazon.com/blogs/storage/how-to-develop-a-user-facing-data-application-with-iam-identity-center-and-s3-access-grants-part-2/](https://aws.amazon.com/blogs/storage/how-to-develop-a-user-facing-data-application-with-iam-identity-center-and-s3-access-grants-part-2/))
+    🔗 [Blog 2](https://aws.amazon.com/blogs/storage/how-to-develop-a-user-facing-data-application-with-iam-identity-center-and-s3-access-grants-part-2/)
 
 
 5.	Amazon Q uses the ChatSync API to carry out the conversation. Thanks to the identity-aware session, Amazon Q knows which user it is interacting with.
