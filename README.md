@@ -105,8 +105,6 @@ Step 1: Launch the following AWS CloudFormation template to deploy ELB , Cognito
 
 **TrustedIssuerUrl** : Endpoint of the trusted issuer to setup Identity Center
 
-**QServiceRoleNameArn** : IAM role to execute Amazon Q API
-
 **URL** : The Load balancer URL to access the streamlit app
 
 
