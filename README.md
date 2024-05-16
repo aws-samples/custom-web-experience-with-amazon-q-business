@@ -2,9 +2,11 @@
 
 Customers often want the ability to integrate custom functionalities into the Amazon Q user interface, such as handling feedback, using corporate colors and templates, custom login, and reducing context switching by integrating the user interface into a single platform. The code repo will show how to integrate a custom UI on Amazon Q using Amazon Cognito for user authentication and Amazon Q SDK to invoke chatbot application programmatically.
 
-<img src="docs/Architecture.png" alt="Architecture Diagram" width="400"/>
+<img src="docs/arch_idc.png" alt="Architecture Diagram" width="400"/>
 
-The workflow includes the following steps:
+
+
+👨‍💻 The workflow includes the following steps:
 1.	First the user accesses the chatbot application, which is hosted behind an Application Load Balancer.
 
 2.	The user is prompted to log with Cognito
@@ -12,6 +14,10 @@ The workflow includes the following steps:
 3.  The UI application exchanges the token from Cognito with an IAM Identity Center token with the scope for Amazon Q
 
 4.  The UI applications assumes an IAM role and retrieve an AWS Session from Secure Token Service (STS), augmented with the IAM Identity Center token to interact with Amazon Q
+    * Detial flow of token exchange between IAM Identity Center and Idp is explained in below blog posts
+    🔗 [Blog 1](https://aws.amazon.com/blogs/storage/how-to-develop-a-user-facing-data-application-with-iam-identity-center-and-s3-access-grants/)
+
+    🔗 [Blog 2]([https://aws.amazon.com/blogs/storage/how-to-develop-a-user-facing-data-application-with-iam-identity-center-and-s3-access-grants-part-2/](https://aws.amazon.com/blogs/storage/how-to-develop-a-user-facing-data-application-with-iam-identity-center-and-s3-access-grants-part-2/))
 
 
 5.	Amazon Q uses the ChatSync API to carry out the conversation. Thanks to the identity-aware session, Amazon Q knows which user it is interacting with.
@@ -57,14 +63,14 @@ openssl req \
 aws acm import-certificate --certificate fileb://cert.pem --private-key fileb://key.pem
 ```
 
-Please note that you will receive a warning from your browser when accessing the UI if you did not provide a custom SSL certificate when launching the AWS CloudFormation Stack. The above instructions show you how to create a self-signed certificate, which can be used as a backup, but this is certainly not recommended for production use cases.  
+➡️ Please note that you will receive a warning from your browser when accessing the UI if you did not provide a custom SSL certificate when launching the AWS CloudFormation Stack. The above instructions show you how to create a self-signed certificate, which can be used as a backup, but this is certainly not recommended for production use cases.  
 
 You should obtain an SSL Certificate that has been validated by a certificate authority, import it into AWS Certificate Manager, and reference it when launching the AWS CloudFormation Stack.  
 
 If you wish to continue with the self-signed certificate (for development purposes), you should be able to proceed past the browser warning page. With Chrome, you will see a "Your connection is not private" error message (NET::ERR_CERT_AUTHORITY_INVALID), but by clicking on "Advanced," you should then see a link to proceed.
 
 
-### Deploy this Solution: 
+### 🚀 Deploy this Solution: 
 
 Step 1: Launch the following AWS CloudFormation template to deploy ELB , Cognito User pool , including the EC2 instance to host the webapp.
 ---------------------------------------------------------------------
