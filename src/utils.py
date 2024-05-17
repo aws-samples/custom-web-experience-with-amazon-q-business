@@ -1,11 +1,11 @@
-import boto3
-import os
-import logging
-import jwt
 import datetime
+import logging
+import os
+
+import boto3
+import jwt
 import urllib3
 from streamlit_oauth import OAuth2Component
-
 
 logger = logging.getLogger()
 
@@ -22,6 +22,9 @@ OAUTH_CONFIG = {}
 
 
 def retrieve_config_from_agent():
+    """
+    Retrieve the configuration from the agent
+    """
     global IAM_ROLE, REGION, IDC_APPLICATION_ID, AMAZON_Q_APP_ID, OAUTH_CONFIG
     config = urllib3.request(
         "GET",
@@ -32,7 +35,6 @@ def retrieve_config_from_agent():
     IDC_APPLICATION_ID = config["IdcApplicationArn"]
     AMAZON_Q_APP_ID = config["AmazonQAppId"]
     OAUTH_CONFIG = config["OAuthConfig"]
-    return config
 
 
 def configure_oauth_component():
@@ -48,6 +50,18 @@ def configure_oauth_component():
     return OAuth2Component(
         client_id, None, authorize_url, token_url, refresh_token_url, revoke_token_url
     )
+
+def refresh_iam_oidc_token(refresh_token):
+    """
+    Refresh the IAM OIDC token using the refresh token retrieved from Cognito
+    """
+    client = boto3.client("sso-oidc", region_name=REGION)
+    response = client.create_token_with_iam(
+        clientId=IDC_APPLICATION_ID,
+        grantType="refresh_token",
+        refreshToken=refresh_token,
+    )
+    return response
 
 
 def get_iam_oidc_token(id_token):
@@ -68,7 +82,6 @@ def assume_role_with_token(iam_token):
     Assume IAM role with the IAM OIDC idToken
     """
     global AWS_CREDENTIALS
-    print(iam_token)
     decoded_token = jwt.decode(iam_token, options={"verify_signature": False})
     sts_client = boto3.client("sts", region_name=REGION)
     response = sts_client.assume_role(
@@ -91,7 +104,7 @@ def get_qclient(idc_id_token: str):
     Create the Q client using the identity-aware AWS Session.
     """
     if not AWS_CREDENTIALS or AWS_CREDENTIALS["Expiration"] < datetime.datetime.now(
-        datetime.timezone.utc
+        datetime.UTC
     ):
         assume_role_with_token(idc_id_token)
     session = boto3.Session(
@@ -105,18 +118,18 @@ def get_qclient(idc_id_token: str):
 
 # This code invoke chat_sync api and format the response for UI
 def get_queue_chain(
-    prompt_input, user_id, conversationId, parentMessageId, access_token
+    prompt_input, conversation_id, parent_message_id, token
 ):
     """"
     This method is used to get the answer from the queue chain.
     """
-    amazon_q = get_qclient(access_token)
-    if conversationId != "":
+    amazon_q = get_qclient(token)
+    if conversation_id != "":
         answer = amazon_q.chat_sync(
             applicationId=AMAZON_Q_APP_ID,
             userMessage=prompt_input,
-            conversationId=conversationId,
-            parentMessageId=parentMessageId,
+            conversationId=conversation_id,
+            parentMessageId=parent_message_id,
         )
     else:
         answer = amazon_q.chat_sync(
@@ -124,19 +137,20 @@ def get_queue_chain(
         )
 
     system_message = answer.get("systemMessage", "")
-    conversationId = answer.get("conversationId", "")
-    parentMessageId = answer.get("systemMessageId", "")
+    conversation_id = answer.get("conversationId", "")
+    parent_message_id = answer.get("systemMessageId", "")
     result = {
         "answer": system_message,
-        "conversationId": conversationId,
-        "parentMessageId": parentMessageId,
+        "conversationId": conversation_id,
+        "parentMessageId": parent_message_id,
     }
 
-    if "sourceAttributions" in answer and answer["sourceAttributions"]:
+    if answer.get("sourceAttributions"):
         attributions = answer["sourceAttributions"]
         valid_attributions = []
 
-        # Generate the answer references extracting citation number, the document title, and if present, the document url
+        # Generate the answer references extracting citation number,
+        # the document title, and if present, the document url
         for attr in attributions:
             title = attr.get("title", "")
             url = attr.get("url", "")
