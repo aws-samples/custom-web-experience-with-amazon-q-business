@@ -153,15 +153,15 @@ Step 2: Create an IAM Identity Center Application
 
 <img src="docs/iamidcapp_8.png" alt="IAM IDC application" width="400"/>
 
-Step 4: Once the IAM Identity Center application is created, copy the Application ARN and navigate to cloudformation to update the stack . Enter the Identity Center Application ARN in parameter ***IdcApplicationArn*** and run the stack
+Step 4: Once the IAM Identity Center application is created, copy the Application ARN and navigate to cloudformation to update the stack. Enter the Identity Center Application ARN in parameter ***IdcApplicationArn*** and run the stack
 
 
-Step 5 : Once the update is complete , navigate to Cloudformation output tab to copy the URL and open the URL in a browser
+Step 5 : Once the update is complete, navigate to Cloudformation output tab to copy the URL and open the URL in a browser
 
-Step 6 : Streamlit app will prompt to **Connect with Cognito** , For the first login attempt try to Sign up , use the same email id and password for the user that is already exist in IAM Identity Center.
+Step 6 : Streamlit app will prompt to **Connect with Cognito**, For the first login attempt try to Sign up, use the same email id and password for the user that is already exist in IAM Identity Center.
 
 
-⚡ For a better user onboarding experience we can follow the below link to create a second custom app (SAML) in Identity Center to act as the Identity Provider for the Cognito User Pool,removing the need to provision users in both Cognito User Pool and Identity Center.
+⚡ For a better user onboarding experience you can follow the below link to create a second custom app (SAML) in Identity Center to act as the Identity Provider for the Cognito User Pool,removing the need to provision users in both Cognito User Pool and Identity Center.
 
 🔗 [Video](https://www.youtube.com/watch?v=c-hpNhVGnj0&t=522s)
 
