@@ -80,7 +80,7 @@ Step 1: Launch the following AWS CloudFormation template to deploy ELB , Cognito
 
 •	**Stack name** – The name of the CloudFormation stack (for example, AmazonQ-UI-Demo)
 
-•	**AuthName** – A globally unique name to assign to the Amazon Cognito user pool
+•	**AuthName** – A globally unique name to assign to the Amazon Cognito user pool. Please ensure that your domain name does not include any reserved words, such as cognito, aws, or amazon.
 
 •	**CertificateARN** – The CertificateARN generated from the previous step
 
@@ -153,15 +153,16 @@ Step 2: Create an IAM Identity Center Application
 
 <img src="docs/iamidcapp_8.png" alt="IAM IDC application" width="400"/>
 
-Step 4: Once the IAM Identity Center application is created, copy the Application ARN and navigate to cloudformation to update the stack. Enter the Identity Center Application ARN in parameter ***IdcApplicationArn*** and run the stack
+Step 4: Once the IAM Identity Center application is created, copy the Application ARN and navigate to Cloudformation to update the previously created Stack. Enter the Identity Center Application ARN in parameter ***IdcApplicationArn*** and run the stack.
 
+<img src="docs/cfn_update.png" alt="CloudFormation update stack" width="400"/>
 
 Step 5 : Once the update is complete, navigate to Cloudformation output tab to copy the URL and open the URL in a browser
 
 Step 6 : Streamlit app will prompt to **Connect with Cognito**, For the first login attempt try to Sign up, use the same email id and password for the user that is already exist in IAM Identity Center.
 
 
-⚡ For a better user onboarding experience you can follow the below link to create a second custom app (SAML) in Identity Center to act as the Identity Provider for the Cognito User Pool,removing the need to provision users in both Cognito User Pool and Identity Center.
+⚡ To eliminate the need for provisioning users in both the Cognito User Pool and the Identity Center, you can follow the link below to create a second custom app (SAML) in the Identity Center. This custom app will act as the Identity Provider for the Cognito User Pool.
 
 🔗 [Video](https://www.youtube.com/watch?v=c-hpNhVGnj0&t=522s)
 
