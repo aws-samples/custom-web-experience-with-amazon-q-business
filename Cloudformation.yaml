@@ -11,9 +11,8 @@ Parameters:
     Type: AWS::EC2::VPC::Id
     ConstraintDescription: must be the ID of an existing VPC  
   PublicSubnetIds:
-    Description: List of IDs of existing public subnets
+    Description: List of IDs of existing public subnets 
     Type: List<AWS::EC2::Subnet::Id>
-    ConstraintDescription: must be list of existing public subnet IDs  
   CertificateARN:
     Description: Certificate that needs to be added to the Load Balancer
     Type: String
@@ -259,13 +258,17 @@ Resources:
     Type: AWS::EC2::LaunchTemplate
     Properties:
       LaunchTemplateData:
+        NetworkInterfaces:
+          - DeviceIndex: 0
+            AssociatePublicIpAddress: true 
+            SubnetId: !Select [0, !Ref PublicSubnetIds]
+            Groups: 
+              - !Ref SecurityGroup
         EbsOptimized: true
         ImageId: !Ref 'LatestAmiId'
         InstanceType: t3.micro
         IamInstanceProfile:
           Arn: !GetAtt EC2InstanceProfile.Arn
-        SecurityGroupIds:
-          - !Ref SecurityGroup
         UserData:
           Fn::Base64: !Sub |
             #!/bin/bash
@@ -319,9 +322,9 @@ Resources:
   EC2TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      HealthCheckIntervalSeconds: 30
+      HealthCheckIntervalSeconds: 90
       HealthCheckProtocol: HTTP
-      HealthCheckTimeoutSeconds: 15
+      HealthCheckTimeoutSeconds: 45
       HealthyThresholdCount: 5
       Matcher:
         HttpCode: '200'
@@ -330,7 +333,7 @@ Resources:
       Protocol: HTTP
       TargetGroupAttributes:
       - Key: deregistration_delay.timeout_seconds
-        Value: '20'
+        Value: '60'
       UnhealthyThresholdCount: 3
       VpcId: !Ref VpcId
 
