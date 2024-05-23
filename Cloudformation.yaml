@@ -262,6 +262,7 @@ Resources:
         EbsOptimized: true
         ImageId: !Ref 'LatestAmiId'
         InstanceType: t3.micro
+        SubnetId: !Select [0, !Ref PublicSubnetIds]
         IamInstanceProfile:
           Arn: !GetAtt EC2InstanceProfile.Arn
         SecurityGroupIds:
