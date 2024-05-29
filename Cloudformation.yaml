@@ -10,9 +10,14 @@ Parameters:
     Description: ID of the existing VPC
     Type: AWS::EC2::VPC::Id
     ConstraintDescription: must be the ID of an existing VPC  
-  PublicSubnetIds:
-    Description: List of IDs of existing public subnets 
+  ALBSubnetIds:
+    Description: List of IDs of existing public subnets
     Type: List<AWS::EC2::Subnet::Id>
+    ConstraintDescription: must be list of existing public subnet IDs  
+  EC2SubnetIds:
+    Description: List of IDs of existing subnets for EC2 instance. The subnets must have access to Internet.
+    Type: List<AWS::EC2::Subnet::Id>
+    ConstraintDescription: must be list of existing subnet IDs.
   CertificateARN:
     Description: Certificate that needs to be added to the Load Balancer
     Type: String
@@ -28,7 +33,48 @@ Parameters:
     Type: String
     Description: Identity Center customer application ARN.
     Default: ""
-    
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "EC2 Configuration"
+        Parameters:
+          - LatestAmiId
+          - VpcId
+          - EC2SubnetIds
+      - Label:
+          default: "ALB Configuration"
+        Parameters:
+          - CertificateARN
+          - ALBSubnetIds
+      - Label:
+          default: "Cognito Configuration"
+        Parameters:
+          - AuthName
+      - Label:
+          default: "QBusiness Configuration"
+        Parameters:
+          - QApplicationId
+          - IdcApplicationArn
+    ParameterLabels:
+      LatestAmiId:
+        default: "EC2 Machine Image"
+      VpcId:
+        default: "VPC ID"
+      ALBSubnetIds:
+        default: "Public Subnets"
+      EC2SubnetIds:
+        default: "Private Subnets"
+      CertificateARN:
+        default: "Certificate ARN"
+      AuthName:
+        default: "Auth Name"
+      QApplicationId:
+        default: "QApplicationId"
+      IdcApplicationArn:
+        default: "Identity Center Application ARN"
+
 Resources:
   QManagedPolicy:
     Type: AWS::IAM::ManagedPolicy
@@ -243,9 +289,8 @@ Resources:
       TargetGroupARNs:
         - !Ref EC2TargetGroup
       HealthCheckType: ELB
-      HealthCheckGracePeriod: 180
-      VPCZoneIdentifier: !Ref PublicSubnetIds
-
+      HealthCheckGracePeriod: 300
+      VPCZoneIdentifier: !Ref EC2SubnetIds
       LaunchTemplate:
         Version: !GetAtt LaunchTemplate.LatestVersionNumber
         LaunchTemplateId: !Ref LaunchTemplate
@@ -258,17 +303,13 @@ Resources:
     Type: AWS::EC2::LaunchTemplate
     Properties:
       LaunchTemplateData:
-        NetworkInterfaces:
-          - DeviceIndex: 0
-            AssociatePublicIpAddress: true 
-            SubnetId: !Select [0, !Ref PublicSubnetIds]
-            Groups: 
-              - !Ref SecurityGroup
         EbsOptimized: true
         ImageId: !Ref 'LatestAmiId'
         InstanceType: t3.micro
         IamInstanceProfile:
           Arn: !GetAtt EC2InstanceProfile.Arn
+        SecurityGroupIds:
+          - !Ref SecurityGroup
         UserData:
           Fn::Base64: !Sub |
             #!/bin/bash
@@ -322,9 +363,9 @@ Resources:
   EC2TargetGroup:
     Type: AWS::ElasticLoadBalancingV2::TargetGroup
     Properties:
-      HealthCheckIntervalSeconds: 90
+      HealthCheckIntervalSeconds: 30
       HealthCheckProtocol: HTTP
-      HealthCheckTimeoutSeconds: 45
+      HealthCheckTimeoutSeconds: 15
       HealthyThresholdCount: 5
       Matcher:
         HttpCode: '200'
@@ -333,7 +374,7 @@ Resources:
       Protocol: HTTP
       TargetGroupAttributes:
       - Key: deregistration_delay.timeout_seconds
-        Value: '60'
+        Value: '20'
       UnhealthyThresholdCount: 3
       VpcId: !Ref VpcId
 
@@ -425,9 +466,7 @@ Resources:
         - ELBV2_ACCESS_LOGGING_RULE # Not required for the demo
     Properties:
       Scheme: internet-facing
-      Subnets:
-      - !Select [0, !Ref PublicSubnetIds]
-      - !Select [1, !Ref PublicSubnetIds]
+      Subnets: !Ref ALBSubnetIds
       SecurityGroups:
       - !Ref ELBSecurityGroup
   
