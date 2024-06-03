@@ -91,7 +91,7 @@ Step 1: Launch the following AWS CloudFormation template to deploy ELB , Cognito
 
 •	**IdcApplicationArn** – Identity Center customer application ARN , keep it blank on first run as we need to create the cognito user pool as part of this stack to create [IAM Identity Center application with a trusted token issuer](https://docs.aws.amazon.com/singlesignon/latest/userguide/using-apps-with-trusted-token-issuer.html)
 
-•	**PublicSubnetIds** – The ID of the public subnet that can be used to deploy the EC2 instance and the Application Load Balancer
+•	**PublicSubnetIds** – The IDs of the public subnets that can be used to deploy the EC2 instance and the Application Load Balancer. Please select at least 2 public subnets
 
 •	**QApplicationId** – The existing application ID of Amazon Q
 
@@ -121,6 +121,8 @@ Step 2: Create an IAM Identity Center Application
   **Select application type** -> then select OAuth2.0 -> Next
 
   <img src="docs/iamidcapp_1.png" alt="IAM IDC application" width="600"/>
+
+  If you can't find the option of creating a new custom managed application, please [Enable trusted access with IAM Identity Center](https://docs.aws.amazon.com/organizations/latest/userguide/services-that-can-integrate-sso.html#integrate-enable-ta-sso).
 
 - Provide an application name and description and select the below option as shown in the  image
 
