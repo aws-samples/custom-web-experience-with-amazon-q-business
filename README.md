@@ -122,7 +122,7 @@ Step 2: Create an IAM Identity Center Application
 
   <img src="docs/iamidcapp_1.png" alt="IAM IDC application" width="600"/>
 
-  If you can't find the option of creating a new custom managed application, please [Enable trusted access with IAM Identity Center](https://docs.aws.amazon.com/organizations/latest/userguide/services-that-can-integrate-sso.html#integrate-enable-ta-sso).
+  If you can't find the option of creating a new custom managed application, please [Enable Organizations with IAM Identity Center](https://docs.aws.amazon.com/singlesignon/latest/userguide/get-set-up-for-idc.html).
 
 - Provide an application name and description and select the below option as shown in the  image
 
