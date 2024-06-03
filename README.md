@@ -126,16 +126,16 @@ Step 2: Create an IAM Identity Center Application
 
 - Provide an application name and description and select the below option as shown in the  image
 
-<img src="docs/iamdic_2.png" alt="IAM IDC application" width="600"/>
+  <img src="docs/iamdic_2.png" alt="IAM IDC application" width="600"/>
 
 
 -  Now create a trusted token issuer 
 
-<img src="docs/iamidc_3.png" alt="IAM IDC application" width="600"/>
+  <img src="docs/iamidc_3.png" alt="IAM IDC application" width="600"/>
 
 - In the Issuer URL  -> provide the ***TrustedIssuerUrl*** from Step 1,provide an issuer name and keep the map attributes as Email
 
-<img src="docs/iamidc_4.png" alt="IAM IDC application" width="600"/>
+  <img src="docs/iamidc_4.png" alt="IAM IDC application" width="600"/>
 
 
 - Then navigate back to IAM Identity Center application authentication settings , select the trusted token issuer created in the previous step[refresh it if you don't see in the list] and add the Aud claim -> provide the ***Audience*** from step 1 , then click Next
@@ -150,19 +150,19 @@ Step 2: Create an IAM Identity Center Application
 
  - Once the application is created, go to the application and -> Assigned users and groups .
 
-<img src="docs/iamidcapp_10.png" alt="IAM IDC application" width="600"/>
+  <img src="docs/iamidcapp_10.png" alt="IAM IDC application" width="600"/>
 
  - Then set up the Trusted application for identity propagation , follow the below steps to Amazon Q as Trusted applications for identity propagation
 
-<img src="docs/iamidcapp_6.png" alt="IAM IDC application" width="600"/>
+  <img src="docs/iamidcapp_6.png" alt="IAM IDC application" width="600"/>
 
-<img src="docs/iamidcapp_7.png" alt="IAM IDC application" width="600"/>
+  <img src="docs/iamidcapp_7.png" alt="IAM IDC application" width="600"/>
 
-<img src="docs/iamidcapp_8.png" alt="IAM IDC application" width="600"/>
+  <img src="docs/iamidcapp_8.png" alt="IAM IDC application" width="600"/>
 
 Step 4: Once the IAM Identity Center application is created, copy the Application ARN and navigate to Cloudformation to update the previously created Stack. Enter the Identity Center Application ARN in parameter ***IdcApplicationArn*** and run the stack.
 
-<img src="docs/cfn_update.png" alt="CloudFormation update stack" width="600"/>
+  <img src="docs/cfn_update.png" alt="CloudFormation update stack" width="600"/>
 
 Step 5 : Once the update is complete, navigate to Cloudformation output tab to copy the URL and open the URL in a browser
 
