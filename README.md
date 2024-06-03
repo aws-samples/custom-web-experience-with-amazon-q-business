@@ -129,7 +129,7 @@ Step 2: Create an IAM Identity Center Application
   <img src="docs/iamdic_2.png" alt="IAM IDC application" width="600"/>
 
 
--  Now create a trusted token issuer 
+- Now create a trusted token issuer 
 
   <img src="docs/iamidc_3.png" alt="IAM IDC application" width="600"/>
 
@@ -140,19 +140,19 @@ Step 2: Create an IAM Identity Center Application
 
 - Then navigate back to IAM Identity Center application authentication settings , select the trusted token issuer created in the previous step[refresh it if you don't see in the list] and add the Aud claim -> provide the ***Audience*** from step 1 , then click Next
 
- <img src="docs/iamidcapp_11.png" alt="IAM IDC application" width="600"/>
+  <img src="docs/iamidcapp_11.png" alt="IAM IDC application" width="600"/>
 
 - In Specify application credentials ,  Enter IAM roles -> provide ***RoleArn*** from Step 1
 
- <img src="docs/iamidcapp_5.png" alt="IAM IDC application" width="600"/>
+  <img src="docs/iamidcapp_5.png" alt="IAM IDC application" width="600"/>
 
- - Then Review all the steps and create the application.
+- Then Review all the steps and create the application.
 
- - Once the application is created, go to the application and -> Assigned users and groups .
+- Once the application is created, go to the application and -> Assigned users and groups .
 
   <img src="docs/iamidcapp_10.png" alt="IAM IDC application" width="600"/>
 
- - Then set up the Trusted application for identity propagation , follow the below steps to Amazon Q as Trusted applications for identity propagation
+- Then set up the Trusted application for identity propagation , follow the below steps to Amazon Q as Trusted applications for identity propagation
 
   <img src="docs/iamidcapp_6.png" alt="IAM IDC application" width="600"/>
 
