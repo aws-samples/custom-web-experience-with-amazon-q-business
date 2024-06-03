@@ -1,5 +1,10 @@
 # Custom Web Experience with Amazon Q Business
 
+| :zap: If you created a new Amazon Q Business application on or after April 30th, 2024, you can now set up a custom UI using the updated instructions provided below.
+|-----------------------------------------|
+
+**Note:** The instructions provided in this guide are specific to Cognito, but they should also work for other OIDC 2.0 compliant Identity Providers (IdPs) with minor adjustments.
+
 Customers often want the ability to integrate custom functionalities into the Amazon Q user interface, such as handling feedback, using corporate colors and templates, custom login, and reducing context switching by integrating the user interface into a single platform. The code repo will show how to integrate a custom UI on Amazon Q using Amazon Cognito for user authentication and Amazon Q SDK to invoke chatbot application programmatically, through [chat_sync API](https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/qbusiness/client/chat_sync.html).
 
 <img src="docs/Architecture.jpg" alt="Architecture Diagram" width="600"/>
@@ -86,7 +91,7 @@ Step 1: Launch the following AWS CloudFormation template to deploy ELB , Cognito
 
 •	**IdcApplicationArn** – Identity Center customer application ARN , keep it blank on first run as we need to create the cognito user pool as part of this stack to create [IAM Identity Center application with a trusted token issuer](https://docs.aws.amazon.com/singlesignon/latest/userguide/using-apps-with-trusted-token-issuer.html)
 
-•	**PublicSubnetIds** – The ID of the public subnet that can be used to deploy the EC2 instance and the Application Load Balancer
+•	**PublicSubnetIds** – The IDs of the public subnets that can be used to deploy the EC2 instance and the Application Load Balancer. Please select at least 2 public subnets
 
 •	**QApplicationId** – The existing application ID of Amazon Q
 
@@ -116,6 +121,8 @@ Step 2: Create an IAM Identity Center Application
   **Select application type** -> then select OAuth2.0 -> Next
 
   <img src="docs/iamidcapp_1.png" alt="IAM IDC application" width="600"/>
+
+  If you can't find the option of creating a new custom managed application, please [Enable trusted access with IAM Identity Center](https://docs.aws.amazon.com/organizations/latest/userguide/services-that-can-integrate-sso.html#integrate-enable-ta-sso).
 
 - Provide an application name and description and select the below option as shown in the  image
 

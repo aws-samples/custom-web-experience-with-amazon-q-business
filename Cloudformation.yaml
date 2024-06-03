@@ -11,7 +11,7 @@ Parameters:
     Type: AWS::EC2::VPC::Id
     ConstraintDescription: must be the ID of an existing VPC  
   PublicSubnetIds:
-    Description: List of IDs of existing public subnets 
+    Description: List of IDs of existing public subnets. Please select at least two subnets
     Type: List<AWS::EC2::Subnet::Id>
   CertificateARN:
     Description: Certificate that needs to be added to the Load Balancer
