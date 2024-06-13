@@ -1,15 +1,14 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Description: 'CloudFormation for the blog on GenAI with QBusiness'
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "CloudFormation for the blog on GenAI with QBusiness"
 Parameters:
-  
   LatestAmiId:
     Description: EC2 machine image
-    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
-    Default: '/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64'
+    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    Default: "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64"
   VpcId:
     Description: ID of the existing VPC
     Type: AWS::EC2::VPC::Id
-    ConstraintDescription: must be the ID of an existing VPC  
+    ConstraintDescription: must be the ID of an existing VPC
   PublicSubnetIds:
     Description: List of IDs of existing public subnets. Please select at least two subnets
     Type: List<AWS::EC2::Subnet::Id>
@@ -18,8 +17,8 @@ Parameters:
     Type: String
   AuthName:
     Type: String
-    Description: Unique Auth Name for Cognito Resources
-    AllowedPattern: ^[a-z0-9]+$
+    Description: Unique Auth Name for Cognito Resources. Not required if using another identity provider.
+    AllowedPattern: ^()|([a-z0-9]+)$
     ConstraintDescription: May only include lowercase, alphanumeric characters
   QApplicationId:
     Type: String
@@ -28,56 +27,140 @@ Parameters:
     Type: String
     Description: Identity Center customer application ARN.
     Default: ""
-    
+  UseCognito:
+    Type: String
+    Description: Whether to use Cognito as Identity Provider of the Application
+    Default: "Yes"
+    AllowedValues:
+      - "Yes"
+      - "No"
+    ConstraintDescription: Must be Yes or No
+  OAuthClientId:
+    Type: String
+    Description: OAuth Client Id if using an external identity provider (Entra, Okta, Auth0...)
+    Default: ""
+  OAuthIssuer:
+    Type: String
+    Description: OAuth Issuer if using an external identity provider (Entra, Okta, Auth0...)
+    Default: ""
+  GithubBranch:
+    Type: String
+    Description: Github branch to deploy the app from.
+    Default: "main"
+  ExternalFQDN:
+    Type: String
+    Description: Custom domain name for the application. Leave empty if you want to use the default ALB generated domain name.
+    Default: ""
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "EC2 Configuration"
+        Parameters:
+          - VpcId
+          - PublicSubnetIds
+          - GithubBranch
+          - CertificateARN
+          - ExternalFQDN
+          - LatestAmiId
+      - Label:
+          default: "Authentication Configuration"
+        Parameters:
+          - UseCognito
+          - AuthName
+          - OAuthClientId
+          - OAuthIssuer
+      - Label:
+          default: "QBusiness Configuration"
+        Parameters:
+          - QApplicationId
+          - IdcApplicationArn
+    ParameterLabels:
+      LatestAmiId:
+        default: "EC2 Machine Image"
+      VpcId:
+        default: "VPC ID"
+      PublicSubnetIds:
+        default: "Public Subnets"
+      CertificateARN:
+        default: "Certificate ARN"
+      AuthName:
+        default: "Auth Name"
+      OAuthIssuer:
+        default: "Issuer URL"
+      OAuthClientId:
+        default: "Client ID"
+      QApplicationId:
+        default: "QApplicationId"
+      IdcApplicationArn:
+        default: "Identity Center Application ARN"
+      GithubBranch:
+        default: Github branch name
+      ExternalFQDN:
+        default: Domain name
+      UseCognito:
+        default: Use Cognito user pool
+
+Conditions:
+  UseCognito:
+    Fn::Equals:
+      - !Ref UseCognito
+      - "Yes"
+  UseALBFQDN:
+    Fn::Equals:
+      - !Ref ExternalFQDN
+      - ""
+
 Resources:
   QManagedPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
       PolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
-        - Sid: AllowQChat
-          Effect: Allow
-          Action:
-          - "qbusiness:ChatSync"
-          Resource: !Sub "arn:${AWS::Partition}:qbusiness:${AWS::Region}:${AWS::AccountId}:application/${QApplicationId}"
-        
+          - Sid: AllowQChat
+            Effect: Allow
+            Action:
+              - "qbusiness:ChatSync"
+            Resource: !Sub "arn:${AWS::Partition}:qbusiness:${AWS::Region}:${AWS::AccountId}:application/${QApplicationId}"
+
   QServiceRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
-        - Effect: Allow
-          Principal:
-            AWS:
-            - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
-          Action:
-          - sts:AssumeRole
-          - sts:SetContext
-          Condition:
-            ArnEquals:
-              "aws:PrincipalArn": !GetAtt EC2ServiceRole.Arn
+          - Effect: Allow
+            Principal:
+              AWS:
+                - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
+            Action:
+              - sts:AssumeRole
+              - sts:SetContext
+            Condition:
+              ArnEquals:
+                "aws:PrincipalArn": !GetAtt EC2ServiceRole.Arn
       Path: /
       ManagedPolicyArns:
-      - !Ref QManagedPolicy
-  
+        - !Ref QManagedPolicy
+
   EC2ServiceRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
-        - Effect: Allow
-          Principal:
-            Service:
-            - ec2.amazonaws.com
-          Action:
-          - sts:AssumeRole    
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
       Path: /
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
-  
+
   EC2ServicePolicy:
     Type: AWS::IAM::ManagedPolicy
     Metadata:
@@ -88,63 +171,79 @@ Resources:
       Roles:
         - !Ref EC2ServiceRole
       PolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
-        - Sid: AllowAssumeQRole
-          Effect: Allow
-          Action:
-          - "sts:AssumeRole"
-          - "sts:SetContext"
-          Resource: !GetAtt QServiceRole.Arn
-        - Sid: AllowTokenExchange
-          Effect: Allow
-          Action:
-            - "sso-oauth:CreateTokenWithIAM"
-          Resource: "*" 
-        - Sid: AllowAppConfig
-          Effect: Allow
-          Action:
-            - "appconfig:StartConfigurationSession"
-            - "appconfig:GetLatestConfiguration"
-          Resource: 
-            - !Sub "arn:${AWS::Partition}:appconfig:${AWS::Region}:${AWS::AccountId}:application/${AppConfig}/environment/${AppConfigEnvironment}/configuration/${AppConfigConfigProfile}"
+          - Sid: AllowAssumeQRole
+            Effect: Allow
+            Action:
+              - "sts:AssumeRole"
+              - "sts:SetContext"
+            Resource: !GetAtt QServiceRole.Arn
+          - Sid: AllowTokenExchange
+            Effect: Allow
+            Action:
+              - "sso-oauth:CreateTokenWithIAM"
+            Resource: "*"
+          - Sid: AllowAppConfig
+            Effect: Allow
+            Action:
+              - "appconfig:StartConfigurationSession"
+              - "appconfig:GetLatestConfiguration"
+            Resource:
+              - !Sub "arn:${AWS::Partition}:appconfig:${AWS::Region}:${AWS::AccountId}:application/${AppConfig}/environment/${AppConfigEnvironment}/configuration/${AppConfigConfigProfile}"
 
   AppConfig:
     Type: AWS::AppConfig::Application
     Properties:
-      Name: qcustomwebui
-  
+      Name: !Sub
+        - qcustomwebui-${UUID}
+        - UUID: !Select [2, !Split ["/", !Ref AWS::StackId]]
+
   AppConfigEnvironment:
     Type: AWS::AppConfig::Environment
     Properties:
       ApplicationId: !Ref AppConfig
-      Name: qcustomwebui-env
-  
+      Name: !Sub
+        - qcustomwebui-env-${UUID}
+        - UUID: !Select [2, !Split ["/", !Ref AWS::StackId]]
+
   AppConfigConfigProfile:
     Type: AWS::AppConfig::ConfigurationProfile
     Properties:
       ApplicationId: !Ref AppConfig
-      Name: qcustomwebui-config
+      Name: !Sub
+        - qcustomwebui-config-${UUID}
+        - UUID: !Select [2, !Split ["/", !Ref AWS::StackId]]
       LocationUri: "hosted"
-  
+
   AppConfigConfigVersion:
     Type: AWS::AppConfig::HostedConfigurationVersion
     Properties:
       ApplicationId: !Ref AppConfig
       ConfigurationProfileId: !Ref AppConfigConfigProfile
       ContentType: "application/json"
-      Content: !Sub |
-        {
-          "AmazonQAppId": "${QApplicationId}",
-          "IamRoleArn": "${QServiceRole.Arn}",
-          "Region": "${AWS::Region}",
-          "IdcApplicationArn": "${IdcApplicationArn}",
-          "OAuthConfig": {
-            "ClientId": "${UserPoolClient}",
-            "ExternalDns": "${LowerCaseFqdn.Output}",
-            "CognitoDomain" : "${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com"
+      Content: !Sub
+        - |
+          {
+            "AmazonQAppId": "${QApplicationId}",
+            "IamRoleArn": "${QServiceRole.Arn}",
+            "Region": "${AWS::Region}",
+            "IdcApplicationArn": "${IdcApplicationArn}",
+            "OAuthConfig": {
+              "ClientId": "${ClientId}",
+              "ExternalDns": "${Fqdn}",
+              "CognitoDomain" : "${Issuer}"
+            }
           }
-        }
+        - Issuer:
+            !If [
+              UseCognito,
+              !GetAtt UserPool.ProviderURL,
+              !Ref OAuthIssuer,
+            ]
+          ClientId: !If [UseCognito, !Ref UserPoolClient, !Ref OAuthClientId]
+          Fqdn:
+            !If [UseALBFQDN, !GetAtt LowerCaseFqdn.Output, !Ref ExternalFQDN]
   AppConfigDeployment:
     Type: AWS::AppConfig::Deployment
     Properties:
@@ -153,7 +252,7 @@ Resources:
       ConfigurationVersion: !GetAtt AppConfigConfigVersion.VersionNumber
       EnvironmentId: !Ref AppConfigEnvironment
       DeploymentStrategyId: !Ref AppConfigDeploymentStrategy
-  
+
   AppConfigDeploymentStrategy:
     Type: AWS::AppConfig::DeploymentStrategy
     Properties:
@@ -169,9 +268,9 @@ Resources:
     Metadata:
       guard:
         SuppressedRules:
-        - EC2_SECURITY_GROUP_INGRESS_OPEN_TO_WORLD_RULE # This SG only applies to Internet facing ALB
-        - SECURITY_GROUP_INGRESS_CIDR_NON_32_RULE
-        - SECURITY_GROUP_MISSING_EGRESS_RULE
+          - EC2_SECURITY_GROUP_INGRESS_OPEN_TO_WORLD_RULE # This SG only applies to Internet facing ALB
+          - SECURITY_GROUP_INGRESS_CIDR_NON_32_RULE
+          - SECURITY_GROUP_MISSING_EGRESS_RULE
     Properties:
       GroupDescription: ELB Security Group
       VpcId: !Ref VpcId
@@ -202,37 +301,36 @@ Resources:
     Metadata:
       guard:
         SuppressedRules:
-        - SECURITY_GROUP_MISSING_EGRESS_RULE
+          - SECURITY_GROUP_MISSING_EGRESS_RULE
     Properties:
       GroupDescription: EC2 Security group
-      VpcId: !Ref VpcId  
+      VpcId: !Ref VpcId
       SecurityGroupIngress:
-      - IpProtocol: tcp
-        FromPort: 8080
-        ToPort: 8080
-        SourceSecurityGroupId: !Ref ELBSecurityGroup
-        Description: Allow inbound traffic from ALB
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          SourceSecurityGroupId: !Ref ELBSecurityGroup
+          Description: Allow inbound traffic from ALB
 
   SecurityGroupEgress:
     Type: AWS::EC2::SecurityGroupEgress
     Metadata:
       guard:
         SuppressedRules:
-        - EC2_SECURITY_GROUP_EGRESS_OPEN_TO_WORLD_RULE
-        - SECURITY_GROUP_EGRESS_ALL_PROTOCOLS_RULE
+          - EC2_SECURITY_GROUP_EGRESS_OPEN_TO_WORLD_RULE
+          - SECURITY_GROUP_EGRESS_ALL_PROTOCOLS_RULE
     Properties:
       Description: Allow all outbound traffic
       GroupId: !Ref SecurityGroup
       IpProtocol: "-1"
       CidrIp: 0.0.0.0/0
 
-  
   EC2InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Path: "/"
       Roles:
-      - !Ref EC2ServiceRole
+        - !Ref EC2ServiceRole
 
   AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
@@ -253,19 +351,19 @@ Resources:
         - Key: Name
           Value: Custom Q UI
           PropagateAtLaunch: true
-  
+
   LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
       LaunchTemplateData:
         NetworkInterfaces:
           - DeviceIndex: 0
-            AssociatePublicIpAddress: true 
+            AssociatePublicIpAddress: true
             SubnetId: !Select [0, !Ref PublicSubnetIds]
-            Groups: 
+            Groups:
               - !Ref SecurityGroup
         EbsOptimized: true
-        ImageId: !Ref 'LatestAmiId'
+        ImageId: !Ref "LatestAmiId"
         InstanceType: t3.micro
         IamInstanceProfile:
           Arn: !GetAtt EC2InstanceProfile.Arn
@@ -313,10 +411,11 @@ Resources:
             cd /opt
             git clone https://github.com/aws-samples/custom-web-experience-with-amazon-q-business.git
             cd custom-web-experience-with-amazon-q-business/
+            git checkout ${GithubBranch}
             pip3.11 install virtualenv
             python3.11 -m virtualenv venv
             venv/bin/pip install -r requirements.txt
-            APPCONFIG_APP_NAME=${AppConfig} APPCONFIG_ENV_NAME=${AppConfigEnvironment} APPCONFIG_CONF_NAME=${AppConfigConfigProfile} nohup venv/bin/streamlit run src/app.py --server.port=8080 > logs.txt & 
+            APPCONFIG_APP_NAME=${AppConfig} APPCONFIG_ENV_NAME=${AppConfigEnvironment} APPCONFIG_CONF_NAME=${AppConfigConfigProfile} nohup venv/bin/streamlit run src/app.py --server.port=8080 > logs.txt &
 
     # Target Group, Listener and Application  Load Balancer
   EC2TargetGroup:
@@ -327,17 +426,17 @@ Resources:
       HealthCheckTimeoutSeconds: 45
       HealthyThresholdCount: 5
       Matcher:
-        HttpCode: '200'
-      Name: EC2TargetGroup
+        HttpCode: "200"
       Port: 8080
       Protocol: HTTP
       TargetGroupAttributes:
-      - Key: deregistration_delay.timeout_seconds
-        Value: '60'
+        - Key: deregistration_delay.timeout_seconds
+          Value: "60"
       UnhealthyThresholdCount: 3
       VpcId: !Ref VpcId
 
   UserPool:
+    Condition: UseCognito
     Type: AWS::Cognito::UserPool
     Metadata:
       guard:
@@ -346,15 +445,16 @@ Resources:
     Properties:
       UserPoolName: !Sub ${AuthName}-user-pool
       AutoVerifiedAttributes:
-      - email
+        - email
       MfaConfiguration: "OFF"
       Schema:
-      - Name: email
-        AttributeDataType: String
-        Mutable: false
-        Required: true
+        - Name: email
+          AttributeDataType: String
+          Mutable: false
+          Required: true
 
   UserPoolClient:
+    Condition: UseCognito
     Type: AWS::Cognito::UserPoolClient
     Properties:
       ClientName: !Sub ${AuthName}-client
@@ -362,15 +462,21 @@ Resources:
       UserPoolId: !Ref UserPool
       AllowedOAuthFlowsUserPoolClient: True
       AllowedOAuthFlows:
-      - code
+        - code
       AllowedOAuthScopes:
-      - openid
+        - openid
+        - profile
+        - email
       SupportedIdentityProviders:
-      - COGNITO
+        - COGNITO
       CallbackURLs:
-      - !Sub "https://${LowerCaseFqdn.Output}/component/streamlit_oauth.authorize_button/index.html"
+        - !Sub
+          - "https://${FQDN}/component/streamlit_oauth.authorize_button/index.html"
+          - FQDN:
+              !If [UseALBFQDN, !GetAtt LowerCaseFqdn.Output, !Ref ExternalFQDN]
 
   UserPoolDomain:
+    Condition: UseCognito
     Type: AWS::Cognito::UserPoolDomain
     Properties:
       UserPoolId: !Ref UserPool
@@ -381,33 +487,33 @@ Resources:
     Metadata:
       guard:
         SuppressedRules:
-        - ELBV2_ACM_CERTIFICATE_REQUIRED # Certificate is loaded externally for the demo
+          - ELBV2_ACM_CERTIFICATE_REQUIRED # Certificate is loaded externally for the demo
     Properties:
       LoadBalancerArn: !Ref ApplicationLoadBalancer
       Port: 443
       Protocol: HTTPS
       SslPolicy: ELBSecurityPolicy-TLS13-1-2-2021-06
       Certificates:
-      - CertificateArn: !Ref CertificateARN
+        - CertificateArn: !Ref CertificateARN
       DefaultActions:
-      - Type: forward
-        TargetGroupArn: !Ref EC2TargetGroup
-        Order: 1
-  
+        - Type: forward
+          TargetGroupArn: !Ref EC2TargetGroup
+          Order: 1
+
   ALBListener80:
     Type: AWS::ElasticLoadBalancingV2::Listener
     Metadata:
       guard:
         SuppressedRules:
-        - ELBV2_LISTENER_PROTOCOL_RULE # Not required for the demo
-        - ELBV2_LISTENER_SSL_POLICY_RULE # NO SSL Policy for an HTTP listener
+          - ELBV2_LISTENER_PROTOCOL_RULE # Not required for the demo
+          - ELBV2_LISTENER_SSL_POLICY_RULE # NO SSL Policy for an HTTP listener
     Properties:
       LoadBalancerArn: !Ref ApplicationLoadBalancer
       Port: 80
       Protocol: HTTP
       DefaultActions:
         - Order: 1
-          RedirectConfig: 
+          RedirectConfig:
             Protocol: "HTTPS"
             Port: "443"
             Host: "#{host}"
@@ -421,30 +527,32 @@ Resources:
     Metadata:
       guard:
         SuppressedRules:
-        - ELB_DELETION_PROTECTION_ENABLED # Not required for the demo
-        - ELBV2_ACCESS_LOGGING_RULE # Not required for the demo
+          - ELB_DELETION_PROTECTION_ENABLED # Not required for the demo
+          - ELBV2_ACCESS_LOGGING_RULE # Not required for the demo
     Properties:
       Scheme: internet-facing
       Subnets:
-      - !Select [0, !Ref PublicSubnetIds]
-      - !Select [1, !Ref PublicSubnetIds]
+        - !Select [0, !Ref PublicSubnetIds]
+        - !Select [1, !Ref PublicSubnetIds]
       SecurityGroups:
-      - !Ref ELBSecurityGroup
-  
+        - !Ref ELBSecurityGroup
+
   LowerCaseFqdn:
+    Condition: UseALBFQDN
     Type: Custom::LowerCaseFqdn
     Properties:
       ServiceToken: !GetAtt LowerCaseFunction.Arn
       Input: !GetAtt ApplicationLoadBalancer.DNSName
 
   LowerCaseFunction:
+    Condition: UseALBFQDN
     Type: AWS::Lambda::Function
     Metadata:
       guard:
         SuppressedRules:
-        - LAMBDA_DLQ_CHECK # This a synchronous call no need for DLQ
-        - LAMBDA_INSIDE_VPC # No need for VPC
-        - LAMBDA_CONCURRENCY_CHECK # Not required for the demo
+          - LAMBDA_DLQ_CHECK # This a synchronous call no need for DLQ
+          - LAMBDA_INSIDE_VPC # No need for VPC
+          - LAMBDA_CONCURRENCY_CHECK # Not required for the demo
     Properties:
       Handler: index.handler
       Role: !GetAtt LowerCaseRole.Arn
@@ -470,34 +578,44 @@ Resources:
               cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
       Runtime: python3.12
       Timeout: 60
-  
+
   LowerCaseRole:
+    Condition: UseALBFQDN
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
-        - Effect: Allow
-          Principal:
-            Service:
-            - lambda.amazonaws.com
-          Action:
-          - sts:AssumeRole
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
       Path: /
       ManagedPolicyArns:
-      - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 
 Outputs:
   URL:
     Description: URL to access the Streamlit APP
-    Value:
-      !Sub https://${ApplicationLoadBalancer.DNSName}
+    Value: !Sub
+      - "https://${FQDN}/"
+      - FQDN: !If [UseALBFQDN, !GetAtt LowerCaseFqdn.Output, !Ref ExternalFQDN]
   TrustedIssuerUrl:
     Description: Endpoint of the trusted issuer to setup Identity Center
-    Value: !GetAtt UserPool.ProviderURL
+    Value: !If [UseCognito, !GetAtt UserPool.ProviderURL, !Ref OAuthIssuer]
   Audience:
     Description: Audience to setup customer application in Identity Center
-    Value: !Ref UserPoolClient
+    Value: !If [UseCognito, !Ref UserPoolClient, !Ref OAuthClientId ]
   RoleArn:
     Description: "ARN of the IAM role required to setup token exchange in Identity Center"
     Value: !GetAtt EC2ServiceRole.Arn
+  CallbackURL:
+    Description: Callback URL required only when using an external identity provider
+    Value: !Sub
+      - "https://${FQDN}/component/streamlit_oauth.authorize_button/index.html"
+      - FQDN: !If [UseALBFQDN, !GetAtt LowerCaseFqdn.Output, !Ref ExternalFQDN]
+  ALBFQDN:
+    Description: FQDN of the ALB to create the DNS record if using a custom domain name
+    Value: !GetAtt ApplicationLoadBalancer.DNSName

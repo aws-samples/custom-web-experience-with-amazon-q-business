@@ -31,7 +31,7 @@ oauth2 = utils.configure_oauth_component()
 if "token" not in st.session_state:
     # If not, show authorize button
     redirect_uri = f"https://{utils.OAUTH_CONFIG['ExternalDns']}/component/streamlit_oauth.authorize_button/index.html"
-    result = oauth2.authorize_button("Connect with Cognito",scope="openid", pkce="S256", redirect_uri=redirect_uri)
+    result = oauth2.authorize_button("Click here to login",scope="openid email", pkce="S256", redirect_uri=redirect_uri)
     if result and "token" in result:
         # If authorization successful, save token in session state
         st.session_state.token = result.get("token")
@@ -42,13 +42,14 @@ if "token" not in st.session_state:
         st.rerun()
 else:
     token = st.session_state["token"]
-    refresh_token = token["refresh_token"] # saving the long lived refresh_token
+    refresh_token = token.get("refresh_token") # saving the long lived refresh_token
     user_email = jwt.decode(token["id_token"], options={"verify_signature": False})["email"]
     if st.button("Refresh Cognito Token") :
         # If refresh token button is clicked or the token is expired, refresh the token
         token = oauth2.refresh_token(token, force=True)
         # Put the refresh token in the session state as it is not returned by Cognito
-        token["refresh_token"] = refresh_token
+        if token.get("refresh_token"):
+            token["refresh_token"] = refresh_token
         # Retrieve the Identity Center token
 
         st.session_state.token = token
