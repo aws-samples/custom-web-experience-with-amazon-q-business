@@ -4,6 +4,7 @@ import os
 
 import boto3
 import jwt
+import streamlit as st
 import urllib3
 from streamlit_oauth import OAuth2Component
 
@@ -13,7 +14,6 @@ logger = logging.getLogger()
 APPCONFIG_APP_NAME = os.environ["APPCONFIG_APP_NAME"]
 APPCONFIG_ENV_NAME = os.environ["APPCONFIG_ENV_NAME"]
 APPCONFIG_CONF_NAME = os.environ["APPCONFIG_CONF_NAME"]
-AWS_CREDENTIALS = {}
 AMAZON_Q_APP_ID = None
 IAM_ROLE = None
 REGION = None
@@ -81,7 +81,6 @@ def assume_role_with_token(iam_token):
     """
     Assume IAM role with the IAM OIDC idToken
     """
-    global AWS_CREDENTIALS
     decoded_token = jwt.decode(iam_token, options={"verify_signature": False})
     sts_client = boto3.client("sts", region_name=REGION)
     response = sts_client.assume_role(
@@ -94,8 +93,7 @@ def assume_role_with_token(iam_token):
             }
         ],
     )
-    AWS_CREDENTIALS = response["Credentials"]
-    return response
+    st.session_state.aws_credentials = response["Credentials"]
 
 
 # This method create the Q client
@@ -103,14 +101,15 @@ def get_qclient(idc_id_token: str):
     """
     Create the Q client using the identity-aware AWS Session.
     """
-    if not AWS_CREDENTIALS or AWS_CREDENTIALS["Expiration"] < datetime.datetime.now(
-        datetime.UTC
-    ):
+    if not st.session_state.aws_credentials:
         assume_role_with_token(idc_id_token)
+    elif st.session_state.aws_credentials["Expiration"] < datetime.datetime.now(datetime.UTC):
+        assume_role_with_token(idc_id_token)
+
     session = boto3.Session(
-        aws_access_key_id=AWS_CREDENTIALS["AccessKeyId"],
-        aws_secret_access_key=AWS_CREDENTIALS["SecretAccessKey"],
-        aws_session_token=AWS_CREDENTIALS["SessionToken"],
+        aws_access_key_id=st.session_state.aws_credentials["AccessKeyId"],
+        aws_secret_access_key=st.session_state.aws_credentials["SecretAccessKey"],
+        aws_session_token=st.session_state.aws_credentials["SessionToken"],
     )
     amazon_q = session.client("qbusiness", REGION)
     return amazon_q

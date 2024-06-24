@@ -10,6 +10,8 @@ UTC=timezone.utc
 
 # Init configuration
 utils.retrieve_config_from_agent()
+if "aws_credentials" not in st.session_state:
+    st.session_state.aws_credentials = None
 
 st.set_page_config(page_title="Amazon Q Business Custom UI") #HTML title
 st.title("Amazon Q Business Custom UI") #page title
