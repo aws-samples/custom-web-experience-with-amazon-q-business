@@ -8,8 +8,6 @@ import streamlit as st
 import urllib3
 from streamlit_oauth import OAuth2Component
 
-from urllib import parse, request
-
 logger = logging.getLogger()
 
 # Read the configuration file
@@ -21,13 +19,14 @@ IAM_ROLE = None
 REGION = None
 IDC_APPLICATION_ID = None
 OAUTH_CONFIG = {}
+APP_VERSION = 1
 
 
 def retrieve_config_from_agent():
     """
     Retrieve the configuration from the agent
     """
-    global IAM_ROLE, REGION, IDC_APPLICATION_ID, AMAZON_Q_APP_ID, OAUTH_CONFIG
+    global IAM_ROLE, REGION, IDC_APPLICATION_ID, AMAZON_Q_APP_ID, OAUTH_CONFIG, APP_VERSION
     config = urllib3.request(
         "GET",
         f"http://localhost:2772/applications/{APPCONFIG_APP_NAME}/environments/{APPCONFIG_ENV_NAME}/configurations/{APPCONFIG_CONF_NAME}",
@@ -37,25 +36,35 @@ def retrieve_config_from_agent():
     IDC_APPLICATION_ID = config["IdcApplicationArn"]
     AMAZON_Q_APP_ID = config["AmazonQAppId"]
     OAUTH_CONFIG = config["OAuthConfig"]
+    APP_VERSION = config.get("AppVersion",1)
 
 
 def configure_oauth_component():
     """
     Configure the OAuth2 component for Cognito
     """
-    idp_config = urllib3.request(
-        "GET",
-            f"{OAUTH_CONFIG['CognitoDomain']}/.well-known/openid-configuration"
-    ).json()
+    if APP_VERSION == 1:
+        cognito_domain = OAUTH_CONFIG["CognitoDomain"]
+        authorize_url = f"https://{cognito_domain}/oauth2/authorize"
+        token_url = f"https://{cognito_domain}/oauth2/token"
+        refresh_token_url = f"https://{cognito_domain}/oauth2/token"
+        revoke_token_url = f"https://{cognito_domain}/oauth2/revoke"
+        client_id = OAUTH_CONFIG["ClientId"]
+    if APP_VERSION == 2:
+        idp_config = urllib3.request(
+            "GET",
+                f"{OAUTH_CONFIG['CognitoDomain']}/.well-known/openid-configuration"
+        ).json()
 
-    authorize_url = idp_config["authorization_endpoint"]
-    token_url = idp_config["token_endpoint"]
-    refresh_token_url = idp_config["token_endpoint"]
-    revoke_token_url = idp_config.get("revocation_endpoint")
-    client_id = OAUTH_CONFIG["ClientId"]
+        authorize_url = idp_config["authorization_endpoint"]
+        token_url = idp_config["token_endpoint"]
+        refresh_token_url = idp_config["token_endpoint"]
+        revoke_token_url = idp_config.get("revocation_endpoint")
+        client_id = OAUTH_CONFIG["ClientId"]
     return OAuth2Component(
         client_id, None, authorize_url, token_url, refresh_token_url, revoke_token_url
     )
+
 
 def refresh_iam_oidc_token(refresh_token):
     """

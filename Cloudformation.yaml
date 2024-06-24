@@ -233,7 +233,8 @@ Resources:
               "ClientId": "${ClientId}",
               "ExternalDns": "${Fqdn}",
               "CognitoDomain" : "${Issuer}"
-            }
+            },
+            "AppVersion": 2
           }
         - Issuer:
             !If [
