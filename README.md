@@ -19,7 +19,7 @@ Customers often want the ability to integrate custom functionalities into the Am
 3.  The UI application exchanges the token from Cognito with an IAM Identity Center token with the scope for Amazon Q
 
 4.  The UI applications assumes an IAM role and retrieve an AWS Session from Secure Token Service (STS), augmented with the IAM Identity Center token to interact with Amazon Q
-    * Detial flow of token exchange between IAM Identity Center and Idp is explained in below blog posts
+    * Detail flow of token exchange between IAM Identity Center and Idp is explained in below blog posts
 
     🔗 [Blog 1](https://aws.amazon.com/blogs/storage/how-to-develop-a-user-facing-data-application-with-iam-identity-center-and-s3-access-grants/)
 
@@ -183,6 +183,10 @@ Connect to the EC2 through AWS Session Manager[Optional]:
 sudo -i
 cd /opt/custom-web-experience-with-amazon-q-business
 ```
+
+## Troubleshooting
+
+See [TROUBLESHOOTING](TROUBLESHOOTING.md) for more information.
 
 ## Security
 
