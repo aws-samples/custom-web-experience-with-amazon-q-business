@@ -7,7 +7,7 @@ Customers often want the ability to integrate custom functionalities into the Am
 
 
 ## Contents
-- `cognito-idp-blog-post/`: This directory contains a sample showing how to integrate a custom UI on Amazon Q using Amazon Cognito as an OAuth-compatible identity provider (IdP), which is required in order to exchange a token with AWS IAM Identity Center and later on interact with the Amazon Q Business APIs.  
+- [`cognito-idp-blog-post/`](https://github.com/aws-samples/custom-web-experience-with-amazon-q-business/tree/feature/convert-to-samples-repo/cognito-idp-blog-post): This directory contains a sample showing how to integrate a custom UI on Amazon Q using Amazon Cognito as an OAuth-compatible identity provider (IdP), which is required in order to exchange a token with AWS IAM Identity Center and later on interact with the Amazon Q Business APIs.  
 The code in this directory is used in the AWS blog post: [Build a custom UI for Amazon Q Business](https://aws.amazon.com/blogs/machine-learning/build-a-custom-ui-for-amazon-q-business/)  
 <p align="center">
 <img src="cognito-idp-blog-post/docs/Architecture.jpg" alt="Architecture Diagram" width="400"/>
