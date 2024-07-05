@@ -1,4 +1,4 @@
-## Fine-Tuning Embedding Models on SageMaker
+## Custom Web Experience with Amazon Q Business
 
 This repository contains samples for building a custom UI for Amazon Q Business. 
 
