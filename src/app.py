@@ -1,5 +1,5 @@
-from streamlit_controller import StreamlitController
-from user_view import UserView
+from controllers.streamlit_controller import StreamlitController
+from views.user_view import UserView
 
 def main():
     view = UserView()
