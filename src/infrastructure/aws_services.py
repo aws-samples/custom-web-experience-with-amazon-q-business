@@ -19,7 +19,7 @@ def assume_role_with_token(iam_token):
     )
     st.session_state.aws_credentials = response["Credentials"]
     
-def get_qclient(idc_id_token: str, region):
+def get_qclient(idc_id_token: str):
     """
     Create the Q client using the identity-aware AWS Session.
     """
@@ -33,5 +33,5 @@ def get_qclient(idc_id_token: str, region):
         aws_secret_access_key=st.session_state.aws_credentials["SecretAccessKey"],
         aws_session_token=st.session_state.aws_credentials["SessionToken"],
     )
-    amazon_q = session.client("qbusiness", region)
+    amazon_q = session.client("qbusiness", "us-east-1")
     return amazon_q
