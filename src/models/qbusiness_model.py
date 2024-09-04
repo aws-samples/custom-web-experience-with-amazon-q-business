@@ -1,17 +1,18 @@
 from infrastructure.aws_services import get_qclient
+import streamlit as st
 
 def get_queue_chain(prompt_input, conversation_id, parent_message_id, token):
     amazon_q = get_qclient(token)
     if conversation_id != "":
         answer = amazon_q.chat_sync(
-            applicationId=AMAZON_Q_APP_ID,
+            applicationId=st.session_state.AMAZON_Q_APP_ID,
             userMessage=prompt_input,
             conversationId=conversation_id,
             parentMessageId=parent_message_id,
         )
     else:
         answer = amazon_q.chat_sync(
-            applicationId=AMAZON_Q_APP_ID, userMessage=prompt_input
+            applicationId=st.session_state.AMAZON_Q_APP_ID, userMessage=prompt_input
         )
 
     result = {
