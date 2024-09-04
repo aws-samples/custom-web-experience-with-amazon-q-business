@@ -10,6 +10,8 @@ class AuthController:
     
     def __init__(self, view):
         self.view = view
+    
+    def authenticate(self):
         oauth2 = configure_oauth_component(st.session_state.OAUTH_CONFIG)
         
         if "token" not in st.session_state:

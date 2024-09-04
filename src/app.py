@@ -6,7 +6,10 @@ from views.user_view import UserView
 def main():
     view = UserView()
     InitConfigController()
-    if AuthController(view):
+    auth_controler = AuthController(view)
+    is_authenticated = auth_controler.authenticate()
+    
+    if is_authenticated:
         ChatController(view)
 
 if __name__ == "__main__":
