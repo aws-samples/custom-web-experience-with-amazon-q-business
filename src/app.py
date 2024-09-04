@@ -6,8 +6,8 @@ from views.user_view import UserView
 def main():
     view = UserView()
     InitConfigController()
-    AuthController(view)
-    ChatController(view)
+    if AuthController(view):
+        ChatController(view)
 
 if __name__ == "__main__":
     main()

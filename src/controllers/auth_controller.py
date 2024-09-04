@@ -14,7 +14,7 @@ class AuthController:
         
         if "token" not in st.session_state:
             self.view.show_authorize_button(oauth2, self.selected_timezone)
-            return
+            return False
 
         token = st.session_state["token"]
         refresh_token = token["refresh_token"]
@@ -24,6 +24,7 @@ class AuthController:
         user_email = jwt.decode(token["id_token"], options={"verify_signature": False})["email"]
         self.validate_jwt_token(token)
         self.view.set_headers(user_email)
+        return True
     
     def refresh_token(self, oauth2, refresh_token):
         """
