@@ -1,6 +1,7 @@
 import streamlit as st
 from models.qbusiness_model import get_queue_chain
 from streamlit_feedback import streamlit_feedback
+from utils.translation_util import translate_text
 
 class ChatController:
 
@@ -19,7 +20,7 @@ class ChatController:
 
 
     def generate_q_response(self, prompt):
-        translated_prompt = prompt #translate_text(prompt, target_language_code='en')  # Translate to English TODO
+        translated_prompt = translate_text(prompt, target_language_code='en')  # Translate to English TODO
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
                 placeholder = st.empty()
