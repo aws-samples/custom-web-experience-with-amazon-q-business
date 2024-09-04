@@ -20,7 +20,7 @@ class ChatController:
 
 
     def generate_q_response(self, prompt):
-        translated_prompt = translate_text(prompt, target_language_code='en')  # Translate to English TODO
+        translated_prompt = prompt # translate_text(prompt, target_language_code='en')  # Translate to English TODO FIX Access Denied Error
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
                 placeholder = st.empty()
