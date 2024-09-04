@@ -17,7 +17,7 @@ def get_iam_oidc_token(id_token, idc_application_id):
     Retrieve the IAM OIDC token using the ID token.
     """
     client = boto3.client("sso-oidc", region_name="us-east-1")
-    response = client.create_token(
+    response = client.create_token_with_iam(
         clientId=idc_application_id,
         grantType="urn:ietf:params:oauth:grant-type:jwt-bearer",
         assertion=id_token,
