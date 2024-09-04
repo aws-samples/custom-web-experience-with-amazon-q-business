@@ -22,8 +22,9 @@ class StreamlitController:
             return
 
         token = st.session_state["token"]
+        refresh_token = token["refresh_token"]
         if st.button("Refresh Cognito Token"):
-            token = self.refresh_token(oauth2)
+            self.refresh_token(oauth2, refresh_token)
 
         user_email = jwt.decode(token["id_token"], options={"verify_signature": False})["email"]
         self.validate_jwt_token(token)
@@ -57,16 +58,14 @@ class StreamlitController:
         st.set_page_config(page_title="Amazon Q Business Custom UI")
         st.title("Amazon Q Business Custom UI")
 
-    def refresh_token(self, oauth2):
+    def refresh_token(self, oauth2, refresh_token):
         """
         Refresh the Cognito token when expired
         """
         token = oauth2.refresh_token(st.session_state["token"], force=True)
-        refresh_token = token["refresh_token"]
         token["refresh_token"] = refresh_token
         st.session_state.token = token
         st.rerun()
-        return token
 
     def validate_jwt_token(self, token):
         """
@@ -89,7 +88,7 @@ class StreamlitController:
             assume_role_with_token(st.session_state["idc_jwt_token"]["idToken"], st.session_state.IAM_ROLE, st.session_state.REGION)
 
     def generate_q_response(self, prompt):
-        translated_prompt = translate_text(prompt, target_language_code='en')  # Translate to English
+        translated_prompt = prompt #translate_text(prompt, target_language_code='en')  # Translate to English TODO
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
                 placeholder = st.empty()
