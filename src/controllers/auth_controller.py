@@ -52,4 +52,4 @@ class AuthController:
 
         # Assuming the role using the refreshed IAM token
         if not st.session_state.aws_credentials:
-            assume_role_with_token(st.session_state["idc_jwt_token"]["idToken"], st.session_state.IAM_ROLE)
+            assume_role_with_token(st.session_state["idc_jwt_token"]["idToken"])
