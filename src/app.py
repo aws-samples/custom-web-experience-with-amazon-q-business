@@ -1,9 +1,16 @@
-from controllers.streamlit_controller import StreamlitController
+from controllers.init_config_controller import InitConfigController
+from controllers.auth_controller import AuthController
+from controllers.chat_controller import ChatController
 from views.user_view import UserView
 
 def main():
     view = UserView()
-    StreamlitController(view)
+    InitConfigController()
+    auth_controler = AuthController(view)
+    is_authenticated = auth_controler.authenticate()
+    
+    if is_authenticated:
+        ChatController(view)
 
 if __name__ == "__main__":
     main()
