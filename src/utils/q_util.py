@@ -22,7 +22,7 @@ def get_qclient(idc_id_token: str):
     return amazon_q
 
 
-def get_queue_chain(prompt_input, conversation_id, parent_message_id, token):
+def get_q_chain(prompt_input, conversation_id, parent_message_id, token):
     amazon_q = get_qclient(token)
     if conversation_id != "":
         answer = amazon_q.chat_sync(

@@ -1,6 +1,6 @@
 import streamlit as st
 import jwt
-from utils.q_util import get_queue_chain
+from utils.q_util import get_q_chain
 from streamlit_feedback import streamlit_feedback
 from utils.translation_util import translate_text
 
@@ -30,7 +30,7 @@ class ChatController:
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
                 placeholder = st.empty()
-                response = get_queue_chain(translated_prompt, st.session_state["conversationId"],
+                response = get_q_chain(translated_prompt, st.session_state["conversationId"],
                                            st.session_state["parentMessageId"],
                                            st.session_state["idc_jwt_token"]["idToken"])
                 if "references" in response:
