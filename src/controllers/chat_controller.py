@@ -1,4 +1,5 @@
 import streamlit as st
+import jwt
 from models.qbusiness_model import get_queue_chain
 from streamlit_feedback import streamlit_feedback
 from utils.translation_util import translate_text
@@ -7,6 +8,11 @@ class ChatController:
 
     def __init__(self, view):
         self.view = view
+        
+        # Set headers
+        user_email = jwt.decode(st.session_state["token"]["id_token"], options={"verify_signature": False})["email"]
+        self.view.set_headers(user_email)
+        
         # Initialize chat messages
         self.view.init_chat_messages()
 

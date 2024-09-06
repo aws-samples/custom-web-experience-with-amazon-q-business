@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta, timezone
-import jwt
 import streamlit as st
 from utils.oauth_util import configure_oauth_component
 from utils.sts_util import assume_role_with_token
@@ -23,9 +22,7 @@ class AuthController:
         if st.button("Refresh Cognito Token"):
             self.refresh_token(oauth2, refresh_token)
 
-        user_email = jwt.decode(token["id_token"], options={"verify_signature": False})["email"]
         self.validate_jwt_token(token)
-        self.view.set_headers(user_email)
         return True
     
     def refresh_token(self, oauth2, refresh_token):
@@ -42,12 +39,12 @@ class AuthController:
         Validate and refresh the IAM OIDC token
         """
         if "idc_jwt_token" not in st.session_state:
-            st.session_state["idc_jwt_token"] = get_iam_oidc_token(token["id_token"], st.session_state.IDC_APPLICATION_ID, st.session_state.REGION)
+            st.session_state["idc_jwt_token"] = get_iam_oidc_token(token["id_token"], st.session_state.IDC_APPLICATION_ID)
             st.session_state["idc_jwt_token"]["expires_at"] = datetime.now(self.selected_timezone) + \
                 timedelta(seconds=st.session_state["idc_jwt_token"]["expiresIn"])
         elif st.session_state["idc_jwt_token"]["expires_at"] < datetime.now(self.selected_timezone):
             try:
-                st.session_state["idc_jwt_token"] = refresh_iam_oidc_token(st.session_state["idc_jwt_token"]["refreshToken"], st.session_state.IDC_APPLICATION_ID, st.session_state.REGION)
+                st.session_state["idc_jwt_token"] = refresh_iam_oidc_token(st.session_state["idc_jwt_token"]["refreshToken"], st.session_state.IDC_APPLICATION_ID)
                 st.session_state["idc_jwt_token"]["expires_at"] = datetime.now(self.selected_timezone) + \
                     timedelta(seconds=st.session_state["idc_jwt_token"]["expiresIn"])
             except Exception as e:
@@ -55,4 +52,4 @@ class AuthController:
 
         # Assuming the role using the refreshed IAM token
         if not st.session_state.aws_credentials:
-            assume_role_with_token(st.session_state["idc_jwt_token"]["idToken"], st.session_state.IAM_ROLE, st.session_state.REGION)
+            assume_role_with_token(st.session_state["idc_jwt_token"]["idToken"])
