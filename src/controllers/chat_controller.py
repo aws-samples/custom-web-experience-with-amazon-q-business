@@ -1,6 +1,6 @@
 import streamlit as st
 import jwt
-from models.qbusiness_model import get_queue_chain
+from utils.q_util import get_queue_chain
 from streamlit_feedback import streamlit_feedback
 from utils.translation_util import translate_text
 
