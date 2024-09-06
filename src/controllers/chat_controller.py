@@ -26,7 +26,7 @@ class ChatController:
 
 
     def generate_q_response(self, prompt):
-        translated_prompt = prompt # translate_text(prompt, target_language_code='en')  # Translate to English TODO FIX Access Denied Error
+        translated_prompt = translate_text(prompt, target_language_code='en')
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
                 placeholder = st.empty()
@@ -41,5 +41,5 @@ class ChatController:
                 st.session_state["conversationId"] = response["conversationId"]
                 st.session_state["parentMessageId"] = response["parentMessageId"]
 
-        st.session_state.messages.append({"role": "assistant", "content": full_response})
+        st.session_state.messages.append({"role": "assistant", "content": full_response}) #TODO translate back tect to original language
         streamlit_feedback(feedback_type="thumbs", optional_text_label="[Optional] Please provide an explanation")

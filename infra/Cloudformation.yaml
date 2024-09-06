@@ -77,6 +77,7 @@ Resources:
       Path: /
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/TranslateReadOnly
   
   EC2ServicePolicy:
     Type: AWS::IAM::ManagedPolicy
