@@ -41,5 +41,5 @@ class ChatController:
                 st.session_state["conversationId"] = response["conversationId"]
                 st.session_state["parentMessageId"] = response["parentMessageId"]
 
-        st.session_state.messages.append({"role": "assistant", "content": full_response}) #TODO translate back tect to original language
+        st.session_state.messages.append({"role": "assistant", "content": full_response}) #TODO translate back text to original language
         streamlit_feedback(feedback_type="thumbs", optional_text_label="[Optional] Please provide an explanation")
