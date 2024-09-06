@@ -10,7 +10,7 @@ class OauthModel:
         self.client_id = client_id
         
     def get_outh2_component(self):
-        OAuth2Component(
+        return OAuth2Component(
             self.client_id, 
             None, 
             self.authorize_url, 
