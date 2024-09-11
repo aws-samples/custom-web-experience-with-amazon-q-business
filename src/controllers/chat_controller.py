@@ -1,6 +1,6 @@
 import streamlit as st
 import jwt
-from models.qbusiness_model import get_queue_chain
+from utils.q_util import get_q_chain
 from streamlit_feedback import streamlit_feedback
 from utils.translation_util import translate_text
 
@@ -26,11 +26,11 @@ class ChatController:
 
 
     def generate_q_response(self, prompt):
-        translated_prompt = prompt # translate_text(prompt, target_language_code='en')  # Translate to English TODO FIX Access Denied Error
+        translated_prompt = translate_text(prompt, target_language_code='en')
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
                 placeholder = st.empty()
-                response = get_queue_chain(translated_prompt, st.session_state["conversationId"],
+                response = get_q_chain(translated_prompt, st.session_state["conversationId"],
                                            st.session_state["parentMessageId"],
                                            st.session_state["idc_jwt_token"]["idToken"])
                 if "references" in response:
@@ -41,5 +41,5 @@ class ChatController:
                 st.session_state["conversationId"] = response["conversationId"]
                 st.session_state["parentMessageId"] = response["parentMessageId"]
 
-        st.session_state.messages.append({"role": "assistant", "content": full_response})
+        st.session_state.messages.append({"role": "assistant", "content": full_response}) #TODO translate back text to original language
         streamlit_feedback(feedback_type="thumbs", optional_text_label="[Optional] Please provide an explanation")

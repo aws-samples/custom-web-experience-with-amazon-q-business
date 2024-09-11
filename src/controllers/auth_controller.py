@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta, timezone
 import streamlit as st
-from utils.oauth_util import configure_oauth_component
 from utils.sts_util import assume_role_with_token
 from utils.token_util import refresh_iam_oidc_token, get_iam_oidc_token
+from models.oauth_model import OauthModel
 
 class AuthController:
     selected_timezone = timezone.utc
@@ -11,7 +11,11 @@ class AuthController:
         self.view = view
     
     def authenticate(self):
-        oauth2 = configure_oauth_component(st.session_state.OAUTH_CONFIG)
+        oauth_comp_model: OauthModel = OauthModel(
+            cognito_domain=st.session_state.OAUTH_CONFIG["CognitoDomain"], 
+            client_id=st.session_state.OAUTH_CONFIG["ClientId"]
+        )
+        oauth2 = oauth_comp_model.get_outh2_component()
         
         if "token" not in st.session_state:
             self.view.show_authorize_button(oauth2, self.selected_timezone)
