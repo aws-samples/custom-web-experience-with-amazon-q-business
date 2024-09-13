@@ -47,7 +47,7 @@ class UserView:
             cols[idx].button(
                 question,
                 key=question,
-                disabled=st.session_state.thinking,
+                # disabled=st.session_state.thinking,
                 help="Click to ask",
                 on_click=lambda q=question: self.set_rerun_flag(q)
             )
