@@ -30,7 +30,6 @@ class ChatController:
             self.generate_q_response(prompt)
 
     def generate_q_response(self, prompt):
-        st.session_state.thinking = True
         translated_prompt, detected_language = translate_text(prompt, target_language_code='en')
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
@@ -48,6 +47,5 @@ class ChatController:
                 st.session_state["parentMessageId"] = response["parentMessageId"]
 
 
-        st.session_state.thinking = False
         st.session_state.messages.append({"role": "assistant", "content": full_response})
         streamlit_feedback(feedback_type="thumbs", optional_text_label="[Optional] Please provide an explanation")

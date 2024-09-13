@@ -47,18 +47,14 @@ class UserView:
             cols[idx].button(
                 question,
                 key=question,
-                # disabled=st.session_state.thinking,
                 help="Click to ask",
-                on_click=lambda q=question: self.set_rerun_flag(q)
+                on_click=lambda q=question: self.prompt_clicked(q)
             )
 
-    def set_rerun_flag(self, question):
-        st.session_state.thinking = True
+    def prompt_clicked(self, question):
         st.session_state.clicked_input = question
         
     def init_chat_messages(self):
-        if "thinking" not in st.session_state:
-            st.session_state.thinking = False
         if "clicked_input" not in st.session_state:
             st.session_state.clicked_input = ""
         # Define sample questions
