@@ -58,12 +58,9 @@ class ChatController:
         if st.session_state.messages[-1]["role"] != "assistant":
             self.generate_q_response(prompt)
 
-    def set_rerun_flag(slef, question):
-        st.session_state.clicked_samples.append(question)
-        st.session_state.user_prompt = question
+    def set_rerun_flag(self, question):
         st.session_state.messages.append({"role": "user", "content": question})
         st.session_state.thinking = True
-        st.session_state.rerun = True
 
     def generate_q_response(self, prompt):
         st.session_state.thinking = True
