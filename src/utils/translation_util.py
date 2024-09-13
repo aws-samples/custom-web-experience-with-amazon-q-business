@@ -8,4 +8,4 @@ def translate_text(text, source_language_code='auto', target_language_code='en')
         SourceLanguageCode=source_language_code,
         TargetLanguageCode=target_language_code
     )
-    return result['TranslatedText']
+    return result['TranslatedText'], result['SourceLanguageCode']
