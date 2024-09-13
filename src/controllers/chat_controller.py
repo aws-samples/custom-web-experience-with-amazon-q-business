@@ -13,6 +13,9 @@ class ChatController:
         user_email = jwt.decode(st.session_state["token"]["id_token"], options={"verify_signature": False})["email"]
         self.view.set_headers(user_email)
         
+        # Initialize chat messages
+        self.view.init_chat_messages()
+        
         # Define sample questions
         sample_questions = [
             "What can I cook with chicken?",
@@ -46,9 +49,6 @@ class ChatController:
                 help="Click to ask",
                 on_click=lambda q=question: self.set_rerun_flag(q)
             )
-        
-        # Initialize chat messages
-        self.view.init_chat_messages()
 
         if prompt := st.chat_input():
             st.session_state.messages.append({"role": "user", "content": prompt})
