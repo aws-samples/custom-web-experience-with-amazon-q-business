@@ -52,7 +52,7 @@ class ChatController:
 
 
         prompt = st.chat_input()
-        if  st.session_state.clicked_input != "":
+        if  st.session_state.clicked_input:
             prompt = st.session_state.clicked_input
         
         if prompt:
@@ -66,6 +66,7 @@ class ChatController:
     def set_rerun_flag(self, question):
         st.session_state.messages.append({"role": "user", "content": question})
         st.session_state.thinking = True
+        st.session_state.clicked_input = question
 
     def generate_q_response(self, prompt):
         st.session_state.thinking = True
