@@ -64,7 +64,6 @@ class ChatController:
             self.generate_q_response(prompt)
 
     def set_rerun_flag(self, question):
-        st.session_state.messages.append({"role": "user", "content": question})
         st.session_state.thinking = True
         st.session_state.clicked_input = question
 
