@@ -37,6 +37,8 @@ class UserView:
             st.session_state.input = ""
         if "thinking" not in st.session_state:
             st.session_state.thinking = False
+        if "clicked_input" not in st.session_state:
+            st.session_state.clicked_input = ""
 
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
