@@ -21,15 +21,240 @@ Parameters:
     Description: Unique Auth Name for Cognito Resources
     AllowedPattern: ^[a-z0-9]+$
     ConstraintDescription: May only include lowercase, alphanumeric characters
-  QApplicationId:
+  IdentityCenterInstanceArn:
     Type: String
-    Description: Q Application Id
+    Description: Identity Center customer application ARN.
   IdcApplicationArn:
     Type: String
     Description: Identity Center customer application ARN.
     Default: ""
+  PrivateSubnetIds:
+    Description: List of IDs of existing public subnets. Please select at least two subnets
+    Type: List<AWS::EC2::Subnet::Id>
+  SyncSchedule:
+    Type: String
     
 Resources:
+  MyS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${AWS::StackName}-mybucket"
+      AccessControl: Private
+
+  QApplicationPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action:
+              - 'cloudwatch:PutMetricData'
+            Effect: Allow
+            Resource: '*'
+            Condition:
+              StringEquals:
+                "cloudwatch:namespace": "AWS/QBusiness"
+          - Action:
+              - 'logs:DescribeLogGroups'
+            Effect: Allow
+            Resource: '*'
+          - Action:
+              - 'logs:CreateLogGroup'
+            Resource:
+              - !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/qbusiness/*'
+            Effect: Allow
+          - Action:
+              - 'logs:DescribeLogStreams'
+              - 'logs:CreateLogStream'
+              - 'logs:PutLogEvents'
+            Effect: Allow 
+            Resource:
+              - !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/qbusiness/*:log-stream:*'
+
+  QAppRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: qbusiness.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - !Ref QApplicationPolicy
+
+  QApp:
+    Type: AWS::QBusiness::Application
+    Properties:
+      AttachmentsConfiguration: 
+        AttachmentsControlMode: ENABLED
+      DisplayName: !Ref AWS::StackName                     
+      IdentityCenterInstanceArn: !Ref IdentityCenterInstanceArn
+      RoleArn: !GetAtt QAppRole.Arn
+
+  QDataSourcePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'qbusiness:BatchPutDocument'
+              - 'qbusiness:BatchDeleteDocument'
+              - 'qbusiness:PutGroup'
+              - 'qbusiness:CreateUser'
+              - 'qbusiness:DeleteGroup'
+              - 'qbusiness:UpdateUser'
+              - 'qbusiness:ListGroups'
+            Resource:
+              - !Sub 'arn:${AWS::Partition}:qbusiness:${AWS::Region}:${AWS::AccountId}:*/*'
+              - !Sub 'arn:${AWS::Partition}:qbusiness:${AWS::Region}:${AWS::AccountId}:*/*/*/*'
+              - !Sub 'arn:${AWS::Partition}:qbusiness:${AWS::Region}:${AWS::AccountId}:*/*/*/*/*/*'
+              - !Sub 'arn:${AWS::Partition}:qbusiness:${AWS::Region}:${AWS::AccountId}:*/*/*'
+              - !Sub 'arn:${AWS::Partition}:qbusiness:${AWS::Region}:${AWS::AccountId}:*'
+          - Sid: AllowsAmazonQToGetObjectfromS3
+            Action:
+            - s3:GetObject
+            Resource:
+              - !Sub "arn:${AWS::Partition}:s3:::${MyS3Bucket}/*"
+            Effect: Allow
+            Condition:
+              StringEquals:
+                aws:ResourceAccount: !Ref AWS::AccountId
+          - Sid: AllowsAmazonQToListS3Buckets
+            Action:
+            - s3:ListBucket
+            Resource:
+            - !Sub "arn:${AWS::Partition}:s3:::${MyS3Bucket}"
+            Effect: Allow
+            Condition:
+              StringEquals:
+                aws:ResourceAccount: !Ref AWS::AccountId
+          # - Sid: AllowUseofEncryptionKey
+          #   Effect: Allow
+          #   Action:
+          #     - kms:Decrypt
+          #   Resource: !Sub "arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/${S3EncryptionKeyId}"
+          - Sid: AllowsAmazonQToCreateAndDeleteENI
+            Effect: Allow
+            Action:
+            - ec2:CreateNetworkInterface
+            - ec2:DeleteNetworkInterface
+            Resource:
+            - !Join ["/", [!Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:subnet", !Select [0, !Split [',', !Join [',', !Ref PrivateSubnetIds]]]]]
+            - !Join ["/", [!Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:subnet", !Select [1, !Split [',', !Join [',', !Ref PrivateSubnetIds]]]]]
+            - !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:security-group/${SecurityGroup}"
+          - Sid: AllowsAmazonQToCreateDeleteENI
+            Effect: Allow
+            Action:
+            - ec2:CreateNetworkInterface
+            - ec2:DeleteNetworkInterface
+            - ec2:CreateNetworkInterfacePermission
+            Resource: !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:network-interface/*"
+            Condition:
+              ForAllValues:StringEquals:
+                aws:TagKeys:
+                - AMAZON_Q
+          - Sid: AllowsAmazonQToCreateTags
+            Effect: Allow
+            Action:
+            - ec2:CreateTags
+            Resource: !Sub "arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:network-interface/*"
+            Condition:
+              StringEquals:
+                ec2:CreateAction: CreateNetworkInterface
+          - Sid: AllowsAmazonQToConnectToVPC
+            Effect: Allow
+            Action:
+            - ec2:DescribeNetworkInterfaces
+            - ec2:DescribeAvailabilityZones
+            - ec2:DescribeNetworkInterfaceAttribute
+            - ec2:DescribeVpcs
+            - ec2:DescribeRegions
+            - ec2:DescribeNetworkInterfacePermissions
+            - ec2:DescribeSubnets
+            Resource: "*"
+          - Sid: GetSharePointSecret
+            Effect: Allow
+            Action:
+              - "secretsmanager:GetResourcePolicy"
+              - "secretsmanager:GetSecretValue"
+              - "secretsmanager:DescribeSecret"
+              - "secretsmanager:ListSecretVersionIds"
+            Resource:
+              - !Sub "arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:QBusiness*"
+
+
+  QDataSourceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: qbusiness.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - !Ref QDataSourcePolicy
+
+  QIndex:
+    Type: AWS::QBusiness::Index
+    Properties:
+      ApplicationId: !Ref QApp
+      DisplayName: !Sub "${AWS::StackName}-index"
+
+  QRetriever:
+    Type: AWS::QBusiness::Retriever
+    Properties:
+      ApplicationId: !Ref QApp
+      Configuration:
+        NativeIndexConfiguration:
+          IndexId: !GetAtt QIndex.IndexId         
+      DisplayName: !Sub "${AWS::StackName}-retriever"
+      RoleArn: !GetAtt QDataSourceRole.Arn
+      Type: NATIVE_INDEX
+
+  S3QDataSource:
+    Type: AWS::QBusiness::DataSource
+    Properties:
+      ApplicationId: !Ref QApp
+      Configuration:
+        additionalProperties:
+          maxFileSizeInMegaBytes: 50
+        connectionConfiguration:
+          repositoryEndpointMetadata:
+            BucketName: !Ref MyS3Bucket
+        repositoryConfigurations:
+          document:
+            fieldMappings:
+              - indexFieldName: "s3_document_id"
+                indexFieldType: "STRING"
+                dataSourceFieldName: "s3_document_id"
+        syncMode: "FULL_CRAWL"
+        type: "S3"
+      #Description: String
+      DisplayName: !Sub "${AWS::StackName}-s3-ds"
+      IndexId: !GetAtt QIndex.IndexId
+      RoleArn: !GetAtt QDataSourceRole.Arn
+      SyncSchedule: !Ref SyncSchedule
+      # VpcConfiguration: 
+      #   SecurityGroupIds: 
+      #     - !Ref SecurityGroup
+      #   SubnetIds: !Ref PrivateSubnetIds
+
+
+
+
+
+
+
+
+
+
+  # Original App
   QManagedPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
@@ -40,7 +265,7 @@ Resources:
           Effect: Allow
           Action:
           - "qbusiness:ChatSync"
-          Resource: !Sub "arn:${AWS::Partition}:qbusiness:${AWS::Region}:${AWS::AccountId}:application/${QApplicationId}"
+          Resource: !Sub "arn:${AWS::Partition}:qbusiness:${AWS::Region}:${AWS::AccountId}:application/${QApp}"
         
   QServiceRole:
     Type: AWS::IAM::Role
@@ -113,19 +338,19 @@ Resources:
   AppConfig:
     Type: AWS::AppConfig::Application
     Properties:
-      Name: qcustomwebui
+      Name: !Sub "${AWS::StackName}-qcustomwebui"
   
   AppConfigEnvironment:
     Type: AWS::AppConfig::Environment
     Properties:
       ApplicationId: !Ref AppConfig
-      Name: qcustomwebui-env
+      Name: !Sub "${AWS::StackName}-qcustomwebui-env"
   
   AppConfigConfigProfile:
     Type: AWS::AppConfig::ConfigurationProfile
     Properties:
       ApplicationId: !Ref AppConfig
-      Name: qcustomwebui-config
+      Name: !Sub "${AWS::StackName}-qcustomwebui-config"
       LocationUri: "hosted"
   
   AppConfigConfigVersion:
@@ -136,7 +361,7 @@ Resources:
       ContentType: "application/json"
       Content: !Sub |
         {
-          "AmazonQAppId": "${QApplicationId}",
+          "AmazonQAppId": "${QApp}",
           "IamRoleArn": "${QServiceRole.Arn}",
           "Region": "${AWS::Region}",
           "IdcApplicationArn": "${IdcApplicationArn}",
@@ -329,7 +554,7 @@ Resources:
       HealthyThresholdCount: 5
       Matcher:
         HttpCode: '200'
-      Name: EC2TargetGroup
+      Name: !Sub "${AWS::StackName}-EC2TargetGroup"
       Port: 8080
       Protocol: HTTP
       TargetGroupAttributes:
