@@ -1,5 +1,5 @@
 pyjwt
 streamlit==1.34
-streamlit-oauth
+streamlit-oauth==0.1.13
 streamlit-feedback
 boto3
